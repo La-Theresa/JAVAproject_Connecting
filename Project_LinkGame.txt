@@ -1,0 +1,402 @@
+Link Connect Game 
+I. Project Background 
+Link Connect is a classic casual game where the core gameplay involves connecting identical patterns with no more than three straight lines to eliminate them. This project requires development using the Java programming language to implement complete game logic, a graphical user interface (GUI), a user system, a save/load mechanism, and extended features, while balancing basic gameplay and playability expansion. 
+
+II. Overall Functional Framework 
+The project is divided into six core tasks based on scoring modules, with the overall functional structure as follows: 
+1. 
+Game Initialization and Level System (10 points) 
+
+2. 
+User System (Guest/Registration/Login/Game Records) (15 points) 
+
+3. 
+Save and Load System (15 points) 
+
+4. 
+Core Game Logic (Connection, Elimination, Scoring, Win/Loss Judgment) (25 points) 
+
+5. 
+Graphical User Interface (GUI) (15 points) 
+
+6. 
+Advanced Extended Features (Self-selected implementation, counted as bonus points) (20+10 points) 
+
+
+
+III. Detailed Functional Requirements 
+Task 1: Game Initialization (10 points) 
+1.1 Grid and Resource Loading 
+
+Support
+ selection of two difficulty levels: 
+
+
+Easy
+ Mode: Two non-adjacent 4  4 grid layouts (i.e., a total of 4  4  2 patterned blocks) Sample: 
+
+
+Hard
+ Mode: 10  10 grid layout 
+
+
+
+
+Pattern
+ resource requirements: 
+
+
+At
+ least 5 different patterns for Easy Mode 
+
+
+At
+ least 12 different patterns for Hard Mode 
+
+
+
+
+Randomly
+ generate the game board, and ensure there is a path to eliminate all pairs (clearable without relying on props). 
+
+
+
+
+
+1.2 Game Status Display 
+
+Real-time
+ display: Remaining time / Elapsed time 
+
+
+Real-time
+ display: Current score 
+
+
+Real-time
+ prompts: Number of remaining eliminable pairs, level progress 
+
+
+
+1.3 Basic Functions 
+
+Support
+ restarting to reset the current level's board, time, score, and selection status. 
+
+
+Load
+ default configurations when the game starts, supporting quick access to the corresponding di.culty level. 
+
+
+Task 2: User System (15 points) 
+2.1 Login Modes 
+
+Support
+ Guest Mode: Directly enter the game without saving data 
+
+
+Support
+ Registered User Mode: 
+
+
+Require
+ login to enter 
+
+
+Save
+ progress and game records 
+
+
+Select
+ historical progress to continue the game 
+
+
+
+
+
+2.2 User Registration 
+
+Registration
+ information: Username + Password 
+
+
+Persistent
+ data storage: Local storage, enabling login after game restart 
+
+
+Task 3: Save and Load System (15 points) 
+3.1 Save Function 
+
+Only
+ registered users can use the save function 
+
+
+Save
+ content includes: 
+
+
+Current
+ board grid status 
+
+
+Current
+ score 
+
+
+Remaining
+ time 
+
+
+Status
+ information consistent with the grid 
+
+
+Support
+ at least 1 save slot 
+
+
+
+
+
+3.2 Load Function 
+
+Read
+ save .les from local storage and restore the game state 
+
+
+Users
+ can only load their own save .les 
+
+
+Exception
+ handling: 
+
+
+
+Corrupted/invalid format of save .les 
+
+Pop
+ up a prompt: "Invalid save .le" and return to the main menu 
+
+
+Identifying
+ "save .les tampered into valid ones" is an advanced feature and not required for the basic part. Tampering into valid save .les means the save .le has been 
+
+
+modified but still complies with save rules after modification. 
+Task 4: Core Game Logic (25 points) 
+4.1 Pattern Matching and Connection Rules 
+
+Selection
+ rules: Players select two patterns in sequence; only identical patterns can be judged for connection 
+
+
+Connection
+ rules: 
+
+
+Allow
+ 0, 1, or 2 turns (maximum three straight lines) 
+
+
+No
+ patterns block the connection path 
+
+
+Highlight
+ the connection path when the connection is valid 
+
+
+
+
+Connection
+ failure: 
+
+
+If
+ two selected patterns are identical but cannot be connected, prompt "Unconnectable" and cancel the selection of both patterns 
+
+
+If
+ two selected patterns are different, cancel the selection of the first pattern and set the second pattern as selected. 
+
+
+
+
+
+4.2 Elimination and Scoring System 
+
+Basic
+ score: +10 points for eliminating one pair of patterns 
+
+
+Combo
+ mechanism: 
+
+
+For
+ three or more consecutive eliminations, the score per pair increases incrementally 
+
+
+Support
+ combo prompts 
+
+
+
+
+Display
+ elimination effects when eliminating patterns. 
+
+
+
+4.3 Win/Loss Judgment 
+
+Victory
+ condition: Eliminate all patterns 
+
+
+Failure
+ conditions: 
+
+
+Time
+ runs out before eliminating all patterns 
+
+
+No
+ eliminable pairs left on the board (dead end) 
+
+
+Pop
+ up a prompt box for win/loss results. 
+
+
+
+
+
+4.4 Operation Records 
+
+Real-time display of the last operation on the interface, reference format (customizable): Eliminated [Apple]  2, +20 points 
+
+
+Combo   3, extra points added 
+Task 5: Graphical User Interface (GUI) (15 points) 
+
+Development
+ based on the demo is allowed 
+
+
+Developing
+ from scratch without using the demo is regarded as an advanced feature 
+
+
+Pure
+ command-line version only scores basic 5 points; visual GUI must be implemented 
+
+
+Interacting
+ with the command line during game operation will result in partial score deduction 
+
+
+Task 6: Advanced Features (30 points) 
+Design and implement advanced features independently; the following are for reference: 
+1. 
+Game ranking system (score sorting, username display) 
+
+2. 
+Multi-level system and progressive difficulty 
+
+3. 
+Local/online two-player battle mode 
+
+4. 
+Background music and click/elimination sound effects 
+
+5. 
+Prop system (hint, reshufe, bomb, freeze time) 
+
+6. 
+Theme/skin switching (fruits, animals, numbers, etc.) 
+
+7. 
+Interface adaptability, window scaling adaptation 
+
+8. 
+Dead end detection and automatic prompts 
+
+9. 
+Animation effect optimization (fade out, scaling, connection animation) 
+
+10. 
+............ 
+
+
+
+
+
+
+
+IV. Game Rule Requirements 
+4.1 Basic Gameplay 
+
+Players
+ click two pattern cards in sequence 
+
+
+Identical
+ patterns + valid connection    eliminate and score points 
+
+
+Di.erent
+ patterns or invalid connection    cancel selection, no points deducted 
+
+
+Support
+ continuous quick eliminations to form combos 
+
+
+
+4.2 Elimination Conditions 
+1. 
+Two patterns are exactly the same 
+
+2. 
+The connection path has a maximum of three straight lines (maximum two turns) 
+
+3. 
+No cards block the connection space 
+
+
+
+4.3 Win/Loss Rules 
+
+Victory: Clear all patterns within the time limit 
+
+Failure: Time expires without clearing all patterns OR no available eliminable pairs on the board 
+
+Support restarting or returning to the menu after failure 
+V. Team Rules 
+1. Grouping Requirements 
+This course project is completed in 2-person teams. All students must participate in project development and on-site defense in 2-person teams; single-person/multi-person teams are not accepted in principle. 
+2. Default and Adjustment Rules for Contribution Ratio 
+
+During
+ the team defense, all team members must be present, and team members discuss and determine the initial contribution ratio. 
+
+
+Review
+ teachers will verify the authenticity of the initial contribution ratio based on on-site defense performance, actual development contributions, etc.; if it does not match the actual contribution, the contribution ratio will be adjusted directly, and the .nal ratio shall be subject to the teacher's approval. 
+
+
+If
+ a member is absent from the defense, they will be scored 0 points directly and not participate in scoring; the contribution ratio of the attending teammate shall not exceed 50%. 
+
+
+The
+ maximum individual score for non-presentation teams is 100 points, and presentation teams will receive supplementary points according to rules. 
+
+
+
+
+
+
