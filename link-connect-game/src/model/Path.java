@@ -11,6 +11,10 @@ import java.util.List;
 public class Path implements Serializable {
     private final List<Position> points;
 
+    /**
+     * 构造连接路径。
+     * @param points 路径关键节点列表
+     */
     public Path(List<Position> points) {
         this.points = new ArrayList<>(points);
     }

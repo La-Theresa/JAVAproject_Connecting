@@ -12,6 +12,10 @@ import java.util.List;
 public class RecordManager {
     private final UserManager userManager;
 
+    /**
+     * 构造排行榜服务。
+     * @param userManager 用户管理器
+     */
     public RecordManager(UserManager userManager) {
         this.userManager = userManager;
     }

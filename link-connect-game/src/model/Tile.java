@@ -9,6 +9,11 @@ public class Tile implements Serializable {
     private final Position position;
     private int patternId;
 
+    /**
+     * 构造图案方块。
+     * @param position 方块所在位置
+     * @param patternId 图案编号，0表示空
+     */
     public Tile(Position position, int patternId) {
         this.position = position;
         this.patternId = patternId;

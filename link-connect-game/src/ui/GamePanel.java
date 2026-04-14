@@ -1,5 +1,6 @@
 package ui;
 
+import controller.GameController;
 import model.Constants;
 import model.GameBoard;
 import model.GameSession;
@@ -7,36 +8,37 @@ import model.Path;
 import model.Position;
 
 import javax.swing.JPanel;
-import javax.swing.Timer;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.util.List;
 
 /**
  * 游戏棋盘绘制与鼠标交互面板。
  */
 public class GamePanel extends JPanel {
-    private final GameFrame frame;
+    private final GameController controller;
     private GameSession session;
-    private Position first;
-    private Position second;
     private Position hintA;
     private Position hintB;
 
-    public GamePanel(GameFrame frame) {
-        this.frame = frame;
+    /**
+     * 构造游戏棋盘面板。
+     * @param controller 游戏控制器
+     */
+    public GamePanel(GameController controller) {
+        this.controller = controller;
         setPreferredSize(new Dimension(Constants.FRAME_WIDTH, Constants.FRAME_HEIGHT - Constants.HUD_HEIGHT));
-        setBackground(new Color(245, 245, 220));
+        setBackground(AuthUiKit.APP_BG);
         addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseClicked(MouseEvent e) {
+            public void mousePressed(MouseEvent e) {
                 onBoardClick(e.getX(), e.getY());
             }
         });
@@ -47,17 +49,13 @@ public class GamePanel extends JPanel {
      */
     public void bindSession(GameSession session) {
         this.session = session;
-        this.first = null;
-        this.second = null;
-        this.hintA = null;
-        this.hintB = null;
         repaint();
     }
 
     /**
      * 高亮提示方块。
      */
-    public void showHint(Position[] pair) {
+    public void setHintPair(Position[] pair) {
         if (pair == null) {
             hintA = null;
             hintB = null;
@@ -69,51 +67,25 @@ public class GamePanel extends JPanel {
     }
 
     private void onBoardClick(int x, int y) {
-        if (session == null || session.hasWon() || session.hasLost()) {
-            return;
-        }
         Position p = pixelToPos(x, y);
         if (p == null) {
             return;
         }
-        GameBoard board = session.board();
-        if (board.isEmpty(p)) {
-            return;
-        }
-
-        if (first == null) {
-            first = p;
-            hintA = null;
-            hintB = null;
-            repaint();
-            return;
-        }
-
-        if (first.equals(p)) {
-            first = null;
-            second = null;
-            repaint();
-            return;
-        }
-
-        second = p;
-        if (session.eliminate(first, second)) {
-            Timer t = new Timer(220, e -> {
-                session.clearLastPath();
-                repaint();
-            });
-            t.setRepeats(false);
-            t.start();
-        }
-        first = null;
-        second = null;
-        frame.refreshHud();
-        frame.checkGameStateAndPrompt();
-        repaint();
+        controller.handleBoardClick(p);
     }
 
+    /**
+     * 像素坐标转换为棋盘位置。
+     * @param x 像素X坐标
+     * @param y 像素Y坐标
+     * @return 棋盘位置，无效返回null
+     */
     private Position pixelToPos(int x, int y) {
-        GameBoard board = session.board();
+        GameSession currentSession = controller.getSession();
+        if (currentSession == null) {
+            return null;
+        }
+        GameBoard board = currentSession.board();
         int cellW = getWidth() / board.cols();
         int cellH = getHeight() / board.rows();
         int col = x / Math.max(1, cellW);
@@ -128,7 +100,8 @@ public class GamePanel extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        if (session == null) {
+        GameSession currentSession = controller.getSession();
+        if (currentSession == null) {
             return;
         }
         Graphics2D g2 = (Graphics2D) g;
@@ -137,10 +110,21 @@ public class GamePanel extends JPanel {
         drawPath(g2);
     }
 
+    /**
+     * 绘制棋盘方块、选中高亮和提示标记。
+     * @param g2 图形上下文
+     */
     private void drawBoard(Graphics2D g2) {
-        GameBoard board = session.board();
+        GameSession currentSession = controller.getSession();
+        if (currentSession == null) {
+            return;
+        }
+        GameBoard board = currentSession.board();
         int cellW = getWidth() / board.cols();
         int cellH = getHeight() / board.rows();
+        Position first = controller.getSelectedFirst();
+        Position second = controller.getSelectedSecond();
+        Position[] hints = controller.getHintPair();
 
         for (int r = 0; r < board.rows(); r++) {
             for (int c = 0; c < board.cols(); c++) {
@@ -154,11 +138,12 @@ public class GamePanel extends JPanel {
 
                 if (!board.isEmpty(p)) {
                     int pattern = board.tileAt(p).patternId();
-                    g2.setColor(patternColor(pattern));
-                    g2.fillRoundRect(x + 6, y + 6, Math.max(10, cellW - 12), Math.max(10, cellH - 12), 16, 16);
-                    g2.setColor(Color.WHITE);
-                    g2.setFont(new Font("SansSerif", Font.BOLD, Math.max(12, Math.min(cellW, cellH) / 3)));
-                    g2.drawString(String.valueOf(pattern), x + cellW / 2 - 4, y + cellH / 2 + 5);
+                    int iconSize = Math.max(18, Math.min(cellW, cellH) - 14);
+                    String iconKey = resolveIconKey(currentSession.difficulty(), pattern);
+                    BufferedImage image = ThemePngIconLoader.loadTileImage(iconKey, iconSize);
+                    int ix = x + (cellW - iconSize) / 2;
+                    int iy = y + (cellH - iconSize) / 2;
+                    g2.drawImage(image, ix, iy, null);
                 }
 
                 if ((first != null && first.equals(p)) || (second != null && second.equals(p))) {
@@ -166,7 +151,10 @@ public class GamePanel extends JPanel {
                     g2.setStroke(new BasicStroke(3f));
                     g2.drawRect(x + 2, y + 2, cellW - 4, cellH - 4);
                 }
-                if ((hintA != null && hintA.equals(p)) || (hintB != null && hintB.equals(p))) {
+                if ((hints != null && hints.length > 0 && hints[0] != null && hints[0].equals(p))
+                        || (hints != null && hints.length > 1 && hints[1] != null && hints[1].equals(p))
+                        || (hintA != null && hintA.equals(p))
+                        || (hintB != null && hintB.equals(p))) {
                     g2.setColor(new Color(46, 204, 113));
                     g2.setStroke(new BasicStroke(3f));
                     g2.drawRect(x + 4, y + 4, cellW - 8, cellH - 8);
@@ -175,13 +163,21 @@ public class GamePanel extends JPanel {
         }
     }
 
+    /**
+     * 绘制消除路径连线。
+     * @param g2 图形上下文
+     */
     private void drawPath(Graphics2D g2) {
-        Path path = session.lastPath();
+        GameSession currentSession = controller.getSession();
+        if (currentSession == null) {
+            return;
+        }
+        Path path = currentSession.lastPath();
         if (path == null) {
             return;
         }
         List<Position> points = path.points();
-        GameBoard board = session.board();
+        GameBoard board = currentSession.board();
         int cellW = getWidth() / board.cols();
         int cellH = getHeight() / board.rows();
 
@@ -198,21 +194,15 @@ public class GamePanel extends JPanel {
         }
     }
 
-    private Color patternColor(int pattern) {
-        Color[] palette = {
-                new Color(231, 76, 60),
-                new Color(230, 126, 34),
-                new Color(241, 196, 15),
-                new Color(46, 204, 113),
-                new Color(26, 188, 156),
-                new Color(52, 152, 219),
-                new Color(41, 128, 185),
-                new Color(142, 68, 173),
-                new Color(243, 156, 18),
-                new Color(22, 160, 133),
-                new Color(127, 140, 141),
-                new Color(149, 165, 166)
-        };
-        return palette[(pattern - 1 + palette.length) % palette.length];
+    private String resolveIconKey(Constants.Difficulty difficulty, int patternId) {
+        if (difficulty == Constants.Difficulty.EASY) {
+            int idx = ((patternId - 1) % 4) + 1;
+            return "icon" + idx;
+        }
+        int idx = ((patternId - 1) % 12) + 1;
+        if (idx <= 6) {
+            return "icon" + idx;
+        }
+        return "icon" + (idx - 6) + "_2";
     }
 }

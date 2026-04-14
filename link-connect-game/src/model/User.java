@@ -11,6 +11,11 @@ public class User implements Serializable {
     private int gamesPlayed;
     private int highScore;
 
+    /**
+     * 构造用户实体。
+     * @param username 用户名
+     * @param passwordHash 密码哈希值
+     */
     public User(String username, String passwordHash) {
         this.username = username;
         this.passwordHash = passwordHash;

@@ -72,6 +72,9 @@ public class UserManager {
         return new ArrayList<>(users.values());
     }
 
+    /**
+     * 从持久化文件加载用户数据。
+     */
     private void load() {
         try {
             Files.createDirectories(userFilePath.getParent());
@@ -95,6 +98,9 @@ public class UserManager {
         }
     }
 
+    /**
+     * 将用户数据保存到持久化文件。
+     */
     private void save() {
         List<String> lines = new ArrayList<>();
         for (User user : users.values()) {
@@ -107,6 +113,11 @@ public class UserManager {
         }
     }
 
+    /**
+     * 使用SHA-256生成密码哈希。
+     * @param input 明文密码
+     * @return 十六进制哈希字符串
+     */
     private String hash(String input) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -121,6 +132,11 @@ public class UserManager {
         }
     }
 
+    /**
+     * 安全解析整数，失败返回0。
+     * @param value 字符串值
+     * @return 解析结果或0
+     */
     private int parseIntOrZero(String value) {
         try {
             return Integer.parseInt(value);

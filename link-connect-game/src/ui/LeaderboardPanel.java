@@ -1,9 +1,13 @@
 package ui;
 
+import controller.GameController;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
+import javax.swing.border.EmptyBorder;
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Font;
 import java.util.List;
 
 /**
@@ -12,13 +16,18 @@ import java.util.List;
 public class LeaderboardPanel extends JPanel {
     private final JTextArea area = new JTextArea();
 
-    public LeaderboardPanel(GameFrame frame) {
+    public LeaderboardPanel(GameController controller) {
         setLayout(new BorderLayout());
+        setBackground(AuthUiKit.APP_BG);
         area.setEditable(false);
+        area.setBackground(AuthUiKit.TEXTBOX_BG);
+        area.setForeground(new Color(30, 30, 30));
+        area.setFont(new Font("Arial", Font.PLAIN, 15));
+        area.setBorder(new EmptyBorder(12, 16, 12, 16));
         add(area, BorderLayout.CENTER);
 
-        JButton back = new JButton("Back");
-        back.addActionListener(e -> frame.showMenu());
+        JButton back = AuthUiKit.createPrimaryButton("Back");
+        back.addActionListener(e -> controller.goToMenu());
         add(back, BorderLayout.SOUTH);
     }
 

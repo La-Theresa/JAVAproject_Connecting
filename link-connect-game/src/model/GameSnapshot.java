@@ -14,6 +14,16 @@ public class GameSnapshot implements Serializable {
     private final int comboCount;
     private final String operationMessage;
 
+    /**
+     * 构造存档快照。
+     * @param username 用户名
+     * @param difficulty 游戏难度
+     * @param boardGrid 棋盘图案网格
+     * @param score 当前分数
+     * @param timeLeft 剩余时间（秒）
+     * @param comboCount 连击数
+     * @param operationMessage 最近操作信息
+     */
     public GameSnapshot(String username,
                         Constants.Difficulty difficulty,
                         int[][] boardGrid,

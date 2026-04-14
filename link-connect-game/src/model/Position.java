@@ -10,6 +10,11 @@ public final class Position implements Serializable {
     private final int row;
     private final int col;
 
+    /**
+     * 构造棋盘位置。
+     * @param row 行坐标
+     * @param col 列坐标
+     */
     public Position(int row, int col) {
         this.row = row;
         this.col = col;
