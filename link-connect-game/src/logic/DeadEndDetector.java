@@ -1,5 +1,9 @@
 package logic;
 
+import data.Theme2VocabularyData;
+import data.Theme3PoemData;
+import data.Theme4YauData;
+import model.Constants;
 import model.GameBoard;
 import model.Position;
 
@@ -59,11 +63,16 @@ public class DeadEndDetector {
      *         connectable pair, or {@code null} if no such pair exists
      */
     public Position[] findAnyPair(GameBoard board) {
-        /*
-         * Iterate over each pattern group's position set. Using the internal
-         * patternLocations index avoids scanning the entire grid — we only
-         * visit positions that actually contain tiles.
-         */
+        if (board.theme() == Constants.Theme.THEME2) {
+            return findTheme2Pair(board);
+        }
+        if (board.theme() == Constants.Theme.THEME3) {
+            return findTheme3Pair(board);
+        }
+        if (board.theme() == Constants.Theme.THEME4) {
+            return findTheme4Pair(board);
+        }
+
         for (Map.Entry<Integer, Set<Position>> entry : board.patternEntries()) {
             List<Position> group = new ArrayList<>(entry.getValue());
             int size = group.size();
@@ -87,5 +96,97 @@ public class DeadEndDetector {
             }
         }
         return null; // No connectable pair found anywhere on the board.
+    }
+
+    private Position[] findTheme2Pair(GameBoard board) {
+        for (Map.Entry<Integer, Set<Position>> entry : board.patternEntries()) {
+            int pattern = entry.getKey();
+            if (pattern <= 0) {
+                continue;
+            }
+
+            int pairId = Theme2VocabularyData.pairId(pattern);
+            if (pairId <= 0) {
+                continue;
+            }
+
+            int firstPattern = Theme2VocabularyData.englishPatternId(pairId);
+            int secondPattern = Theme2VocabularyData.chinesePatternId(pairId);
+
+            Position[] pair = findConnectableAcrossTwoPatterns(board, firstPattern, secondPattern);
+            if (pair != null) {
+                return pair;
+            }
+        }
+        return null;
+    }
+
+    private Position[] findTheme3Pair(GameBoard board) {
+        for (Map.Entry<Integer, Set<Position>> entry : board.patternEntries()) {
+            int pattern = entry.getKey();
+            if (pattern <= 0) {
+                continue;
+            }
+
+            int pairId = Theme3PoemData.pairId(pattern);
+            if (pairId <= 0) {
+                continue;
+            }
+
+            int firstPattern = Theme3PoemData.firstPatternId(pairId);
+            int secondPattern = Theme3PoemData.secondPatternId(pairId);
+
+            Position[] pair = findConnectableAcrossTwoPatterns(board, firstPattern, secondPattern);
+            if (pair != null) {
+                return pair;
+            }
+        }
+        return null;
+    }
+
+    private Position[] findTheme4Pair(GameBoard board) {
+        for (Map.Entry<Integer, Set<Position>> entry : board.patternEntries()) {
+            int pattern = entry.getKey();
+            if (pattern <= 0) {
+                continue;
+            }
+
+            int pairId = Theme4YauData.pairId(pattern);
+            if (pairId <= 0) {
+                continue;
+            }
+
+            int firstPattern = Theme4YauData.firstPatternId(pairId);
+            int secondPattern = Theme4YauData.secondPatternId(pairId);
+
+            Position[] pair = findConnectableAcrossTwoPatterns(board, firstPattern, secondPattern);
+            if (pair != null) {
+                return pair;
+            }
+        }
+        return null;
+    }
+
+    private Position[] findConnectableAcrossTwoPatterns(GameBoard board, int firstPattern, int secondPattern) {
+        if (firstPattern <= 0 || secondPattern <= 0) {
+            return null;
+        }
+
+        Set<Position> firstSet = board.getPatternPositions(firstPattern);
+        Set<Position> secondSet = board.getPatternPositions(secondPattern);
+        if (firstSet.isEmpty() || secondSet.isEmpty()) {
+            return null;
+        }
+
+        List<Position> firstList = new ArrayList<>(firstSet);
+        List<Position> secondList = new ArrayList<>(secondSet);
+        for (Position first : firstList) {
+            for (Position second : secondList) {
+                if (pathFinder.canConnect(board, first, second)) {
+                    return new Position[]{first, second};
+                }
+            }
+        }
+        return null;
     }
 }

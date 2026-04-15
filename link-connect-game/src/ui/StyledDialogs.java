@@ -33,7 +33,7 @@ public final class StyledDialogs {
         JPanel content = createBodyContainer();
 
         JLabel msg = new JLabel("<html><div style='text-align:center;'>" + escape(message) + "</div></html>", SwingConstants.CENTER);
-        msg.setFont(new Font(AuthUiKit.BODY_FONT_FAMILY, Font.PLAIN, 15));
+        AuthUiKit.applyLocalizedLabelFont(msg, false, Font.PLAIN, 15);
         msg.setForeground(error ? new java.awt.Color(170, 44, 44) : new java.awt.Color(30, 30, 30));
         msg.setAlignmentX(Component.CENTER_ALIGNMENT);
         msg.setHorizontalAlignment(SwingConstants.CENTER);
@@ -62,7 +62,7 @@ public final class StyledDialogs {
         JPanel content = createBodyContainer();
 
         JLabel title = new JLabel("Choose difficulty", SwingConstants.CENTER);
-        title.setFont(new Font(AuthUiKit.TITLE_FONT_FAMILY, Font.BOLD, 32));
+        AuthUiKit.applyLocalizedLabelFont(title, true, Font.BOLD, 32);
         title.setForeground(new java.awt.Color(20, 20, 20));
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
@@ -108,6 +108,78 @@ public final class StyledDialogs {
         return result.get();
     }
 
+    public static Constants.Theme chooseTheme(Component parent) {
+        JDialog dialog = createBaseDialog(parent, "Theme", 560, 420);
+        JPanel content = createBodyContainer();
+
+        JLabel title = new JLabel("Choose theme", SwingConstants.CENTER);
+        AuthUiKit.applyLocalizedLabelFont(title, true, Font.BOLD, 32);
+        title.setForeground(new java.awt.Color(20, 20, 20));
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JRadioButton theme1 = createRadio("Theme 1 (Icons)", true);
+        JRadioButton theme2 = createRadio("Theme 2 (English-Chinese)", false);
+        JRadioButton theme3 = createRadio("Theme 3 (Poems)", false);
+        JRadioButton theme4 = createRadio("Theme 4 (YAU)", false);
+        ButtonGroup group = new ButtonGroup();
+        group.add(theme1);
+        group.add(theme2);
+        group.add(theme3);
+        group.add(theme4);
+
+        JPanel options = new JPanel();
+        options.setOpaque(false);
+        options.setLayout(new BoxLayout(options, BoxLayout.Y_AXIS));
+        theme1.setAlignmentX(Component.CENTER_ALIGNMENT);
+        theme2.setAlignmentX(Component.CENTER_ALIGNMENT);
+        theme3.setAlignmentX(Component.CENTER_ALIGNMENT);
+        theme4.setAlignmentX(Component.CENTER_ALIGNMENT);
+        options.add(theme1);
+        options.add(Box.createVerticalStrut(8));
+        options.add(theme2);
+        options.add(Box.createVerticalStrut(8));
+        options.add(theme3);
+        options.add(Box.createVerticalStrut(8));
+        options.add(theme4);
+
+        AtomicReference<Constants.Theme> result = new AtomicReference<>(null);
+
+        javax.swing.JButton confirm = AuthUiKit.createPrimaryButton("Start");
+        confirm.addActionListener(e -> {
+            if (theme4.isSelected()) {
+                result.set(Constants.Theme.THEME4);
+            } else if (theme3.isSelected()) {
+                result.set(Constants.Theme.THEME3);
+            } else if (theme2.isSelected()) {
+                result.set(Constants.Theme.THEME2);
+            } else {
+                result.set(Constants.Theme.THEME1);
+            }
+            dialog.dispose();
+        });
+
+        javax.swing.JButton cancel = AuthUiKit.createTextButton("Cancel");
+        cancel.addActionListener(e -> dialog.dispose());
+
+        JPanel actions = new JPanel();
+        actions.setOpaque(false);
+        actions.add(confirm);
+        actions.add(Box.createHorizontalStrut(10));
+        actions.add(cancel);
+
+        content.add(Box.createVerticalStrut(18));
+        content.add(title);
+        content.add(Box.createVerticalStrut(16));
+        content.add(options);
+        content.add(Box.createVerticalStrut(20));
+        content.add(actions);
+        content.add(Box.createVerticalGlue());
+
+        dialog.setContentPane(content);
+        dialog.setVisible(true);
+        return result.get();
+    }
+
     public static SaveManager.SaveSlot chooseSaveSlot(Component parent, List<SaveManager.SaveSlot> slots) {
         if (slots == null || slots.isEmpty()) {
             return null;
@@ -116,7 +188,7 @@ public final class StyledDialogs {
         JPanel root = createBodyContainer();
 
         JLabel title = new JLabel("Select a save to load", SwingConstants.CENTER);
-        title.setFont(new Font(AuthUiKit.TITLE_FONT_FAMILY, Font.BOLD, 30));
+        AuthUiKit.applyLocalizedLabelFont(title, true, Font.BOLD, 30);
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         javax.swing.DefaultListModel<String> model = new javax.swing.DefaultListModel<>();
@@ -126,7 +198,7 @@ public final class StyledDialogs {
         javax.swing.JList<String> list = new javax.swing.JList<>(model);
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.setSelectedIndex(0);
-        list.setFont(new Font(AuthUiKit.BODY_FONT_FAMILY, Font.PLAIN, 14));
+        list.setFont(AuthUiKit.localizedSansFont(model.isEmpty() ? "" : model.get(0), Font.PLAIN, 14));
         list.setBackground(AuthUiKit.TEXTBOX_BG);
         list.setFixedCellHeight(30);
         JScrollPane pane = new JScrollPane(list);
@@ -187,7 +259,7 @@ public final class StyledDialogs {
     private static JRadioButton createRadio(String text, boolean selected) {
         JRadioButton radio = new JRadioButton(text, selected);
         radio.setOpaque(false);
-        radio.setFont(new Font(AuthUiKit.BODY_FONT_FAMILY, Font.PLAIN, 15));
+        AuthUiKit.applyLocalizedButtonFont(radio, false, Font.PLAIN, 15);
         return radio;
     }
 

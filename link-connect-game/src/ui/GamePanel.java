@@ -11,18 +11,25 @@ import javax.swing.JPanel;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * 游戏棋盘绘制与鼠标交互面板。
  */
 public class GamePanel extends JPanel {
+    private static final Color TILE_BLOCK_COLOR = new Color(240, 238, 230);
+    private static final String ENGLISH_FONT_FAMILY = AuthUiKit.BODY_FONT_FAMILY;
+    private static final String CHINESE_SANS_FONT_FAMILY = AuthUiKit.CHINESE_SANS_FONT_FAMILY;
+    private static final String CHINESE_SERIF_FONT_FAMILY = AuthUiKit.CHINESE_SERIF_FONT_FAMILY;
+
     private final GameController controller;
     private GameSession session;
     private Position hintA;
@@ -138,12 +145,28 @@ public class GamePanel extends JPanel {
 
                 if (!board.isEmpty(p)) {
                     int pattern = board.tileAt(p).patternId();
-                    int iconSize = Math.max(18, Math.min(cellW, cellH) - 14);
-                    String iconKey = resolveIconKey(currentSession.difficulty(), pattern);
-                    BufferedImage image = ThemePngIconLoader.loadTileImage(iconKey, iconSize);
-                    int ix = x + (cellW - iconSize) / 2;
-                    int iy = y + (cellH - iconSize) / 2;
-                    g2.drawImage(image, ix, iy, null);
+                    int innerPad = Math.max(5, Math.min(cellW, cellH) / 12);
+                    int tileX = x + innerPad;
+                    int tileY = y + innerPad;
+                    int tileW = Math.max(6, cellW - innerPad * 2);
+                    int tileH = Math.max(6, cellH - innerPad * 2);
+                    g2.setColor(TILE_BLOCK_COLOR);
+                    g2.fillRoundRect(tileX, tileY, tileW, tileH, 12, 12);
+                    g2.setColor(new Color(205, 201, 191));
+                    g2.drawRoundRect(tileX, tileY, tileW, tileH, 12, 12);
+
+                    if (currentSession.theme() == Constants.Theme.THEME2
+                            || currentSession.theme() == Constants.Theme.THEME3
+                            || currentSession.theme() == Constants.Theme.THEME4) {
+                        drawThemeTextTile(g2, currentSession, pattern, tileX, tileY, tileW, tileH);
+                    } else {
+                        int iconSize = Math.max(18, Math.min(cellW, cellH) - 16);
+                        String iconKey = resolveIconKey(currentSession.difficulty(), pattern);
+                        BufferedImage image = ThemePngIconLoader.loadTileImage(iconKey, iconSize);
+                        int ix = x + (cellW - iconSize) / 2;
+                        int iy = y + (cellH - iconSize) / 2;
+                        g2.drawImage(image, ix, iy, null);
+                    }
                 }
 
                 if ((first != null && first.equals(p)) || (second != null && second.equals(p))) {
@@ -205,4 +228,123 @@ public class GamePanel extends JPanel {
         }
         return "icon" + (idx - 6) + "_2";
     }
+
+    private void drawThemeTextTile(Graphics2D g2,
+                                  GameSession session,
+                                  int patternId,
+                                  int x,
+                                  int y,
+                                  int width,
+                                  int height) {
+        String text = session.labelForPattern(patternId);
+        if (text == null || text.isBlank()) {
+            return;
+        }
+
+        boolean chinese = session.isChinesePattern(patternId);
+        int fontSize = chinese ? Math.max(12, Math.min(21, height / 3)) : Math.max(12, Math.min(20, height / 3));
+        String family = chinese
+            ? ((session.theme() == Constants.Theme.THEME3 || session.theme() == Constants.Theme.THEME4)
+            ? CHINESE_SERIF_FONT_FAMILY : CHINESE_SANS_FONT_FAMILY)
+                : ENGLISH_FONT_FAMILY;
+        Font baseFont = new Font(family, Font.PLAIN, fontSize);
+
+        g2.setColor(new Color(35, 35, 35));
+        g2.setFont(baseFont);
+        List<String> lines = wrapText(g2, text, Math.max(20, width - 10), chinese ? 2 : 3, chinese);
+        java.awt.FontMetrics fm = g2.getFontMetrics();
+        int lineHeight = fm.getHeight();
+        int totalHeight = lineHeight * lines.size();
+        int startY = y + (height - totalHeight) / 2 + fm.getAscent();
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
+            int lineX = x + (width - fm.stringWidth(line)) / 2;
+            int lineY = startY + i * lineHeight;
+            g2.drawString(line, lineX, lineY);
+        }
+    }
+
+    private static List<String> wrapText(Graphics2D g2,
+                                         String text,
+                                         int maxWidth,
+                                         int maxLines,
+                                         boolean byChar) {
+        List<String> lines = new ArrayList<>();
+        if (text == null || text.isBlank()) {
+            return lines;
+        }
+
+        if (!byChar && text.contains(" ")) {
+            String[] words = text.split("\\s+");
+            StringBuilder current = new StringBuilder();
+            for (String word : words) {
+                String candidate = current.length() == 0 ? word : current + " " + word;
+                if (g2.getFontMetrics().stringWidth(candidate) <= maxWidth) {
+                    current.setLength(0);
+                    current.append(candidate);
+                    continue;
+                }
+                if (current.length() > 0) {
+                    lines.add(current.toString());
+                    if (lines.size() == maxLines - 1) {
+                        lines.add(ellipsize(g2, word, maxWidth));
+                        return lines;
+                    }
+                    current.setLength(0);
+                }
+                if (g2.getFontMetrics().stringWidth(word) <= maxWidth) {
+                    current.append(word);
+                } else {
+                    lines.add(ellipsize(g2, word, maxWidth));
+                    if (lines.size() >= maxLines) {
+                        return lines;
+                    }
+                }
+            }
+            if (current.length() > 0 && lines.size() < maxLines) {
+                lines.add(current.toString());
+            }
+            if (!lines.isEmpty()) {
+                return lines;
+            }
+        }
+
+        StringBuilder line = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            String candidate = line + String.valueOf(text.charAt(i));
+            if (g2.getFontMetrics().stringWidth(candidate) <= maxWidth) {
+                line.append(text.charAt(i));
+                continue;
+            }
+            if (line.length() > 0) {
+                lines.add(line.toString());
+                if (lines.size() == maxLines) {
+                    lines.set(maxLines - 1, ellipsize(g2, lines.get(maxLines - 1), maxWidth));
+                    return lines;
+                }
+                line.setLength(0);
+            }
+            line.append(text.charAt(i));
+        }
+        if (line.length() > 0 && lines.size() < maxLines) {
+            lines.add(line.toString());
+        }
+        if (lines.isEmpty()) {
+            lines.add(ellipsize(g2, text, maxWidth));
+        }
+        return lines;
+    }
+
+    private static String ellipsize(Graphics2D g2, String text, int maxWidth) {
+        if (g2.getFontMetrics().stringWidth(text) <= maxWidth) {
+            return text;
+        }
+        String suffix = "...";
+        int end = text.length();
+        while (end > 1 && g2.getFontMetrics().stringWidth(text.substring(0, end) + suffix) > maxWidth) {
+            end--;
+        }
+        return text.substring(0, Math.max(1, end)) + suffix;
+    }
+
 }

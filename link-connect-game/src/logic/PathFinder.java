@@ -4,9 +4,7 @@ import model.GameBoard;
 import model.Path;
 import model.Position;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 
 /**
@@ -16,19 +14,11 @@ import java.util.List;
  * direction changes (turns), and returns the connecting path as a sequence of
  * key waypoints if one exists.
  *
- * <p>The algorithm extends the logical board by a 1-cell border of empty space
- * on all sides, allowing paths to route around the outside of the grid.
- * A 0-1 BFS (deque-based) is used: straight moves cost 0 extra; turning costs 1.
- * States that exceed 2 turns are pruned immediately.
- *
- * <p>Performance notes:
+ * <p>This implementation uses a single geometric probing strategy based on the
+ * at-most-2-turns rule. It can both:
  * <ul>
- *   <li>The BFS parent table is a flat {@code int[][][]} array instead of a
- *       {@code HashMap} to avoid per-entry boxing and hash overhead.</li>
- *   <li>{@code isWalkable} is inlined to avoid {@code new Position()} allocation
- *       on every inner-loop iteration.</li>
- *   <li>The state identity is {@code (row, col, dir)} only; {@code turns} is
- *       tracked as a separate value, not part of the key.</li>
+ *   <li>answer existence queries quickly ({@link #canConnect(GameBoard, Position, Position)}), and</li>
+ *   <li>build drawable key-waypoint paths ({@link #findPath(GameBoard, Position, Position)}).</li>
  * </ul>
  */
 public class PathFinder {
@@ -38,14 +28,6 @@ public class PathFinder {
 
     /** Column deltas for the 4 movement directions: up, down, left, right. */
     private static final int[] DC = {0, 0, -1, 1};
-
-    /**
-     * Sentinel value stored in the parent table to indicate "no parent"
-     * (i.e. this is the search root). Chosen as a value that cannot be a
-     * valid encoded state since direction is stored in bits 0–1 and is always
-     * 0–3, so a value of -1 is unambiguous.
-     */
-    private static final int NO_PARENT = -1;
 
     /**
      * Finds a valid path connecting {@code start} to {@code end} on the board,
@@ -66,138 +48,28 @@ public class PathFinder {
      * @return a {@link Path} of key waypoints if connectable, or {@code null}
      */
     public Path findPath(GameBoard board, Position start, Position end) {
-        // Reject trivially invalid inputs before allocating anything.
-        if (start.equals(end)) {
-            return null;
+        List<Position> fastWaypoints = findWaypointsByKeyCorners(board, start, end);
+        if (fastWaypoints != null) {
+            return new Path(fastWaypoints);
         }
-        if (!board.isValid(start) || !board.isValid(end)) {
-            return null;
-        }
-        if (board.isEmpty(start) || board.isEmpty(end)) {
-            return null;
-        }
-        if (!board.tileAt(start).hasSamePattern(board.tileAt(end))) {
-            return null;
-        }
-
-        // Extend the board by 1 cell on every side so paths can skirt the edges.
-        int rows = board.rows() + 2; // shifted coordinate space height
-        int cols = board.cols() + 2; // shifted coordinate space width
-
-        // Shift start/end into the extended coordinate space (add 1 to each axis).
-        int sr = start.row() + 1;
-        int sc = start.col() + 1;
-        int tr = end.row() + 1;
-        int tc = end.col() + 1;
-
-        /*
-         * bestTurns[r][c][d] = fewest turns to reach cell (r,c) arriving from
-         * direction d. Initialised to MAX_VALUE (unvisited). Only the direction
-         * matters for state identity — turns is the cost, not part of the key.
-         */
-        int[][][] bestTurns = new int[rows][cols][4];
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < cols; c++) {
-                for (int d = 0; d < 4; d++) {
-                    bestTurns[r][c][d] = Integer.MAX_VALUE;
-                }
-            }
-        }
-
-        /*
-         * parent[r][c][d] stores the encoded predecessor state that produced the
-         * best arrival at (r,c,d). Encoding: (parentRow * cols + parentCol) * 4 + parentDir.
-         * NO_PARENT (-1) means this is the root.
-         *
-         * Using a flat array instead of HashMap<State,State> eliminates all boxing
-         * overhead and hash computations in the hot BFS inner loop.
-         */
-        int[][][] parent = new int[rows][cols][4];
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < cols; c++) {
-                for (int d = 0; d < 4; d++) {
-                    parent[r][c][d] = NO_PARENT;
-                }
-            }
-        }
-
-        // 0-1 BFS deque: straight moves go to the front (cost 0), turns to the back (cost 1).
-        Deque<int[]> queue = new ArrayDeque<>();
-
-        // Seed all 4 initial directions from the start cell with 0 turns.
-        for (int d = 0; d < 4; d++) {
-            bestTurns[sr][sc][d] = 0;
-            // Encoded state: (row, col, dir) stored as a single int[3].
-            queue.offer(new int[]{sr, sc, d});
-        }
-
-        while (!queue.isEmpty()) {
-            int[] cur = queue.pollFirst();
-            int cr = cur[0];
-            int cc = cur[1];
-            int cd = cur[2];
-            int ct = bestTurns[cr][cc][cd]; // turns accumulated to reach this state
-
-            // Try all 4 movement directions from the current cell.
-            for (int nd = 0; nd < 4; nd++) {
-                int nr = cr + DR[nd];
-                int nc = cc + DC[nd];
-
-                // A turn costs 1; keeping the same direction costs 0.
-                int nt = ct + (cd == nd ? 0 : 1);
-
-                // Prune: game rule allows at most 2 turns.
-                if (nt > 2) {
-                    continue;
-                }
-
-                // Inline walkability check to avoid allocating a Position object.
-                // Out-of-bounds → not walkable.
-                if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) {
-                    continue;
-                }
-                // The target cell is always walkable (it is a matching tile, not empty).
-                boolean isTarget = (nr == tr && nc == tc);
-                if (!isTarget) {
-                    // Border cells (row 0, col 0, last row, last col) are the
-                    // virtual outer ring — always empty and always walkable.
-                    boolean isBorder = (nr == 0 || nc == 0 || nr == rows - 1 || nc == cols - 1);
-                    if (!isBorder) {
-                        // Interior cell: walkable only if it is empty on the original board.
-                        if (!board.isEmpty(new Position(nr - 1, nc - 1))) {
-                            continue;
-                        }
-                    }
-                }
-
-                // Prune: only update if this path is strictly better than any known arrival.
-                if (nt >= bestTurns[nr][nc][nd]) {
-                    continue;
-                }
-
-                // Record the best known turns and parent for path reconstruction.
-                bestTurns[nr][nc][nd] = nt;
-                parent[nr][nc][nd] = encode(cr, cc, cd, cols); // store predecessor
-
-                if (isTarget) {
-                    // Reached the target — reconstruct and return the path immediately.
-                    return rebuildPath(parent, nr, nc, nd, sr, sc, rows, cols);
-                }
-
-                // 0-1 BFS: straight moves (same direction) go to the front of the deque.
-                if (cd == nd) {
-                    queue.offerFirst(new int[]{nr, nc, nd});
-                } else {
-                    queue.offerLast(new int[]{nr, nc, nd});
-                }
-            }
-        }
-        return null; // No path found within the 2-turn limit.
+        return null;
     }
 
     /**
      * Checks whether two positions on the board can be connected.
-     * Delegates to {@link #findPath} for the full search.
+     *
+     * <p>This method is an existence-only fast path:
+     * <ol>
+     *   <li>From {@code start}, scan along 4 rays in the extended board
+     *       (including virtual border).</li>
+     *   <li>For each ray point {@code p}, check if {@code p -> end} is directly clear
+     *       (1 turn), or if either corner composition is clear:
+     *       {@code p -> (p.row,end.col) -> end} / {@code p -> (end.row,p.col) -> end}
+     *       (2 turns).</li>
+     * </ol>
+     *
+     * <p>Because the game only needs an existence judgment in many hot paths,
+     * this avoids full-board BFS expansion.
      *
      * @param board the current game board
      * @param start the first tile position
@@ -205,7 +77,7 @@ public class PathFinder {
      * @return {@code true} if a valid connecting path exists
      */
     public boolean canConnect(GameBoard board, Position start, Position end) {
-        return findPath(board, start, end) != null;
+        return findWaypointsByKeyCorners(board, start, end) != null;
     }
 
     // -------------------------------------------------------------------------
@@ -213,108 +85,250 @@ public class PathFinder {
     // -------------------------------------------------------------------------
 
     /**
-     * Encodes a BFS state {@code (row, col, dir)} as a single integer for
-     * compact storage in the parent table.
-     *
-     * <p>Encoding: {@code (row * cols + col) * 4 + dir}
-     *
-     * @param row  row coordinate in shifted space
-     * @param col  column coordinate in shifted space
-     * @param dir  movement direction (0=up, 1=down, 2=left, 3=right)
-     * @param cols number of columns in the shifted board
-     * @return the encoded integer representing this state
+     * Uses directional probing to find a connectable route and returns compact
+     * waypoints (start, up to two corners, end). Returns {@code null} if none.
      */
-    private int encode(int row, int col, int dir, int cols) {
-        return (row * cols + col) * 4 + dir;
-    }
-
-    /**
-     * Decodes a packed state integer back into {@code [row, col, dir]}.
-     *
-     * @param encoded the packed state integer produced by {@link #encode}
-     * @param cols    number of columns in the shifted board
-     * @return an int array {@code [row, col, dir]}
-     */
-    private int[] decode(int encoded, int cols) {
-        int dir = encoded % 4;
-        int cell = encoded / 4;
-        int col = cell % cols;
-        int row = cell / cols;
-        return new int[]{row, col, dir};
-    }
-
-    /**
-     * Reconstructs the connecting path by walking backwards through the parent
-     * table from the target cell to the source cell, then collapses collinear
-     * steps into waypoints (so the returned path contains only direction-change
-     * corners, plus the two endpoints).
-     *
-     * @param parent   flat parent table: {@code parent[r][c][d]} = encoded predecessor
-     * @param endR     row of the target cell (shifted space)
-     * @param endC     col of the target cell (shifted space)
-     * @param endD     arrival direction at the target cell
-     * @param startR   row of the source cell (shifted space) — used to detect the root
-     * @param startC   col of the source cell (shifted space)
-     * @param rows     total rows in shifted space (unused directly, kept for clarity)
-     * @param cols     total cols in shifted space (needed for decode)
-     * @return {@link Path} with original-coordinate waypoints (unshifted)
-     */
-    private Path rebuildPath(int[][][] parent,
-                             int endR, int endC, int endD,
-                             int startR, int startC,
-                             int rows, int cols) {
-        // Walk parent pointers from target back to source, collecting shifted coords.
-        List<int[]> reversed = new ArrayList<>();
-        int cr = endR, cc = endC, cd = endD;
-        reversed.add(new int[]{cr, cc});
-
-        while (!(cr == startR && cc == startC)) {
-            int enc = parent[cr][cc][cd];
-            if (enc == NO_PARENT) {
-                break; // reached the root (start cell)
-            }
-            int[] prev = decode(enc, cols);
-            cr = prev[0];
-            cc = prev[1];
-            cd = prev[2];
-            reversed.add(new int[]{cr, cc});
+    private List<Position> findWaypointsByKeyCorners(GameBoard board, Position start, Position end) {
+        if (!isPairConnectable(board, start, end)) {
+            return null;
         }
 
-        /*
-         * Convert to original (unshifted) coordinates and collapse collinear
-         * segments so that only direction-change waypoints are kept.
-         * The resulting path has 2–4 points: start, 0–2 corners, end.
-         */
-        List<Position> waypoints = new ArrayList<>();
-        int[] prevDir = null; // direction vector of the previous segment
+        // 0-turn direct connection.
+        if (isStraightClear(board, start.row(), start.col(), end.row(), end.col(), start, end)) {
+            return buildCompactWaypoints(start, end);
+        }
 
-        for (int i = reversed.size() - 1; i >= 0; i--) {
-            int[] pt = reversed.get(i);
-            // Unshift: subtract 1 from each axis to return to board coordinates.
-            Position unshifted = new Position(pt[0] - 1, pt[1] - 1);
+        // 1-turn fast precheck: only two L-shape corner candidates exist.
+        int c1r = start.row();
+        int c1c = end.col();
+        if (isPassableRC(board, c1r, c1c, start, end)
+                && isStraightClear(board, start.row(), start.col(), c1r, c1c, start, end)
+                && isStraightClear(board, c1r, c1c, end.row(), end.col(), start, end)) {
+            return buildCompactWaypoints(start, new Position(c1r, c1c), end);
+        }
 
-            if (waypoints.isEmpty()) {
-                waypoints.add(unshifted);
+        int c2r = end.row();
+        int c2c = start.col();
+        if (isPassableRC(board, c2r, c2c, start, end)
+                && isStraightClear(board, start.row(), start.col(), c2r, c2c, start, end)
+                && isStraightClear(board, c2r, c2c, end.row(), end.col(), start, end)) {
+            return buildCompactWaypoints(start, new Position(c2r, c2c), end);
+        }
+
+        // Directional probing from start: scan key candidates on four rays.
+        // Jump pruning: if a corner branch's end-leg is direction-invariant and
+        // already blocked, skip that branch for the rest of this ray.
+        for (int d = 0; d < 4; d++) {
+            int r = start.row();
+            int c = start.col();
+            boolean horizontalRay = DR[d] == 0;
+            boolean verticalRay = DC[d] == 0;
+            boolean pruneCorner1Branch = false;
+            boolean pruneCorner2Branch = false;
+
+            while (true) {
+                r += DR[d];
+                c += DC[d];
+
+                if (!isWithinExtended(board, r, c)) {
+                    break;
+                }
+
+                if (!isPassableRC(board, r, c, start, end)) {
+                    break;
+                }
+
+                // 1-turn candidate: start -> p -> end.
+                if (isStraightClear(board, r, c, end.row(), end.col(), start, end)) {
+                    return buildCompactWaypoints(start, new Position(r, c), end);
+                }
+
+                // 2-turn candidate: start -> p -> (p.row, end.col) -> end.
+                int corner1r = r;
+                int corner1c = end.col();
+                if (!pruneCorner1Branch) {
+                    if (!isPassableRC(board, corner1r, corner1c, start, end)) {
+                        // For left/right rays, corner1 is fixed and will stay blocked.
+                        if (horizontalRay) {
+                            pruneCorner1Branch = true;
+                        }
+                    } else {
+                        boolean corner1ToEndClear = isStraightClear(
+                                board,
+                                corner1r,
+                                corner1c,
+                                end.row(),
+                                end.col(),
+                                start,
+                                end
+                        );
+                        if (!corner1ToEndClear) {
+                            // For left/right rays, this end-leg is fixed across the ray.
+                            if (horizontalRay) {
+                                pruneCorner1Branch = true;
+                            }
+                        } else if (isStraightClear(board, r, c, corner1r, corner1c, start, end)) {
+                            return buildCompactWaypoints(
+                                    start,
+                                    new Position(r, c),
+                                    new Position(corner1r, corner1c),
+                                    end
+                            );
+                        }
+                    }
+                }
+
+                // 2-turn candidate: start -> p -> (end.row, p.col) -> end.
+                int corner2r = end.row();
+                int corner2c = c;
+                if (!pruneCorner2Branch) {
+                    if (!isPassableRC(board, corner2r, corner2c, start, end)) {
+                        // For up/down rays, corner2 is fixed and will stay blocked.
+                        if (verticalRay) {
+                            pruneCorner2Branch = true;
+                        }
+                    } else {
+                        boolean corner2ToEndClear = isStraightClear(
+                                board,
+                                corner2r,
+                                corner2c,
+                                end.row(),
+                                end.col(),
+                                start,
+                                end
+                        );
+                        if (!corner2ToEndClear) {
+                            // For up/down rays, this end-leg is fixed across the ray.
+                            if (verticalRay) {
+                                pruneCorner2Branch = true;
+                            }
+                        } else if (isStraightClear(board, r, c, corner2r, corner2c, start, end)) {
+                            return buildCompactWaypoints(
+                                    start,
+                                    new Position(r, c),
+                                    new Position(corner2r, corner2c),
+                                    end
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Shared precondition check for connectivity/path queries.
+     */
+    private boolean isPairConnectable(GameBoard board, Position start, Position end) {
+        if (start.equals(end)) {
+            return false;
+        }
+        if (!board.isValid(start) || !board.isValid(end)) {
+            return false;
+        }
+        if (board.isEmpty(start) || board.isEmpty(end)) {
+            return false;
+        }
+        return board.canMatchPatterns(board.tileAt(start).patternId(), board.tileAt(end).patternId());
+    }
+
+    /**
+     * Builds a compact waypoint list by removing duplicate points and
+     * collapsing collinear middle points.
+     */
+    private List<Position> buildCompactWaypoints(Position... candidates) {
+        List<Position> unique = new ArrayList<>();
+        for (Position p : candidates) {
+            if (p == null) {
                 continue;
             }
-
-            Position last = waypoints.get(waypoints.size() - 1);
-            // Compute the unit direction vector from 'last' to 'unshifted'.
-            int[] curDir = new int[]{
-                Integer.compare(unshifted.row() - last.row(), 0),
-                Integer.compare(unshifted.col() - last.col(), 0)
-            };
-
-            if (prevDir == null || curDir[0] != prevDir[0] || curDir[1] != prevDir[1]) {
-                // Direction changed — add a new waypoint at the corner.
-                waypoints.add(unshifted);
-            } else {
-                // Same direction — extend the current segment (replace last waypoint).
-                waypoints.set(waypoints.size() - 1, unshifted);
+            if (!unique.isEmpty() && unique.get(unique.size() - 1).equals(p)) {
+                continue;
             }
-            prevDir = curDir;
+            unique.add(p);
         }
 
-        return new Path(waypoints);
+        if (unique.size() <= 2) {
+            return unique;
+        }
+
+        List<Position> compact = new ArrayList<>();
+        compact.add(unique.get(0));
+        for (int i = 1; i < unique.size() - 1; i++) {
+            Position prev = compact.get(compact.size() - 1);
+            Position curr = unique.get(i);
+            Position next = unique.get(i + 1);
+
+            int dr1 = Integer.compare(curr.row() - prev.row(), 0);
+            int dc1 = Integer.compare(curr.col() - prev.col(), 0);
+            int dr2 = Integer.compare(next.row() - curr.row(), 0);
+            int dc2 = Integer.compare(next.col() - curr.col(), 0);
+            if (dr1 != dr2 || dc1 != dc2) {
+                compact.add(curr);
+            }
+        }
+        compact.add(unique.get(unique.size() - 1));
+        return compact;
     }
+
+    /**
+     * Returns {@code true} if a coordinate is inside the logical board extended
+     * by one virtual border cell on each side.
+     */
+    private boolean isWithinExtended(GameBoard board, int row, int col) {
+        return row >= -1 && row <= board.rows() && col >= -1 && col <= board.cols();
+    }
+
+    /**
+     * A probing point is passable when it is virtual border, start/end, or an
+     * empty in-board cell.
+     */
+    private boolean isPassableRC(GameBoard board, int row, int col, Position start, Position end) {
+        if (row == -1 || row == board.rows() || col == -1 || col == board.cols()) {
+            return true;
+        }
+        if (row < 0 || row >= board.rows() || col < 0 || col >= board.cols()) {
+            return false;
+        }
+        if ((row == start.row() && col == start.col())
+                || (row == end.row() && col == end.col())) {
+            return true;
+        }
+        return board.isEmpty(new Position(row, col));
+    }
+
+    /**
+     * Checks whether two points are aligned and all intermediate cells are
+     * passable for a route segment.
+     */
+    private boolean isStraightClear(GameBoard board,
+                                    int aRow,
+                                    int aCol,
+                                    int bRow,
+                                    int bCol,
+                                    Position start,
+                                    Position end) {
+        if (aRow == bRow && aCol == bCol) {
+            return true;
+        }
+        // reject diagonals before any scanning loop
+        if (aRow != bRow && aCol != bCol) {
+            return false;
+        }
+
+        int rowStep = Integer.compare(bRow, aRow);
+        int colStep = Integer.compare(bCol, aCol);
+        int r = aRow + rowStep;
+        int c = aCol + colStep;
+        while (r != bRow || c != bCol) {
+            if (!isPassableRC(board, r, c, start, end)) {
+                return false;
+            }
+            r += rowStep;
+            c += colStep;
+        }
+        return true;
+    }
+
 }

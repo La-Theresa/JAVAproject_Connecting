@@ -60,7 +60,7 @@ public class GameController {
         }
     }
 
-    /**
+    /**11
      * 打开注册界面。
      */
     public void openRegister() {
@@ -101,7 +101,11 @@ public class GameController {
      */
     public void startGuestGame(Constants.Difficulty difficulty) {
         currentUser = null;
-        startNewSession(difficulty);
+        Constants.Theme theme = view == null ? Constants.Theme.THEME1 : view.chooseTheme();
+        if (theme == null) {
+            return;
+        }
+        startNewSession(difficulty, theme);
     }
 
     /**
@@ -109,7 +113,11 @@ public class GameController {
      * @param difficulty 游戏难度
      */
     public void startGame(Constants.Difficulty difficulty) {
-        startNewSession(difficulty);
+        Constants.Theme theme = view == null ? Constants.Theme.THEME1 : view.chooseTheme();
+        if (theme == null) {
+            return;
+        }
+        startNewSession(difficulty, theme);
     }
 
     /**
@@ -332,7 +340,7 @@ public class GameController {
 
         int firstPattern = board.tileAt(selectedFirst).patternId();
         int secondPattern = board.tileAt(position).patternId();
-        if (firstPattern != secondPattern) {
+        if (!board.canMatchPatterns(firstPattern, secondPattern)) {
             selectedFirst = position;
             selectedSecond = null;
             hintPair = null;
@@ -427,10 +435,13 @@ public class GameController {
      * 启动新的游戏会话。
      * @param difficulty 游戏难度
      */
-    private void startNewSession(Constants.Difficulty difficulty) {
+    private void startNewSession(Constants.Difficulty difficulty, Constants.Theme theme) {
         stopTimer();
-        GameBoard board = boardGenerator.generate(difficulty);
-        session = new GameSession(difficulty, board, pathFinder, deadEndDetector);
+        GameBoard board = boardGenerator.generate(difficulty, theme);
+        if (theme != Constants.Theme.THEME1 && board.theme() == Constants.Theme.THEME1 && view != null) {
+            view.showInfoMessage("Theme", theme.id() + " resource not found, switched to theme1.");
+        }
+        session = new GameSession(difficulty, board.theme(), board, pathFinder, deadEndDetector);
         finishing = false;
         clearSelections();
         if (view != null) {
@@ -504,7 +515,7 @@ public class GameController {
         String userText = currentUser == null ? "Guest" : currentUser.username();
         view.updateHud(
                 userText,
-                session.difficulty().name(),
+                session.difficulty().name() + " | " + session.theme().id(),
                 session.score(),
                 session.timeLeft(),
                 session.comboCount(),

@@ -8,6 +8,7 @@ import java.io.Serializable;
 public class GameSnapshot implements Serializable {
     private final String username;
     private final Constants.Difficulty difficulty;
+    private final Constants.Theme theme;
     private final int[][] boardGrid;
     private final int score;
     private final int timeLeft;
@@ -26,6 +27,7 @@ public class GameSnapshot implements Serializable {
      */
     public GameSnapshot(String username,
                         Constants.Difficulty difficulty,
+                        Constants.Theme theme,
                         int[][] boardGrid,
                         int score,
                         int timeLeft,
@@ -33,6 +35,7 @@ public class GameSnapshot implements Serializable {
                         String operationMessage) {
         this.username = username;
         this.difficulty = difficulty;
+        this.theme = theme;
         this.boardGrid = boardGrid;
         this.score = score;
         this.timeLeft = timeLeft;
@@ -52,6 +55,10 @@ public class GameSnapshot implements Serializable {
      */
     public Constants.Difficulty difficulty() {
         return difficulty;
+    }
+
+    public Constants.Theme theme() {
+        return theme;
     }
 
     /**

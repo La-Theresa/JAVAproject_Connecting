@@ -33,6 +33,8 @@ public interface GameView {
 
     Constants.Difficulty chooseDifficulty();
 
+    Constants.Theme chooseTheme();
+
     SaveManager.SaveSlot chooseSaveSlot(List<SaveManager.SaveSlot> slots);
 
     void showInfoMessage(String title, String message);

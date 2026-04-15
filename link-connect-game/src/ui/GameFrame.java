@@ -195,6 +195,11 @@ public class GameFrame extends JFrame implements GameView {
         return StyledDialogs.chooseDifficulty(this);
     }
 
+    @Override
+    public Constants.Theme chooseTheme() {
+        return StyledDialogs.chooseTheme(this);
+    }
+
     /**
      * 弹出存档槽选择对话框。
      * @param slots 可用存档列表
@@ -315,6 +320,6 @@ public class GameFrame extends JFrame implements GameView {
         label.setVerticalAlignment(SwingConstants.CENTER);
         label.setOpaque(true);
         label.setBackground(AuthUiKit.TEXTBOX_BG);
-        label.setFont(new Font(AuthUiKit.BODY_FONT_FAMILY, Font.PLAIN, 14));
+        AuthUiKit.applyLocalizedLabelFont(label, false, Font.PLAIN, 14);
     }
 }

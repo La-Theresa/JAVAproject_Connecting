@@ -1,5 +1,8 @@
 package model;
 
+import data.Theme2VocabularyData;
+import data.Theme3PoemData;
+import data.Theme4YauData;
 import logic.ComboManager;
 import logic.DeadEndDetector;
 import logic.PathFinder;
@@ -32,6 +35,9 @@ public class GameSession {
 
     /** The difficulty chosen for this session (affects board size and time limit). */
     private final Constants.Difficulty difficulty;
+
+    /** 当前会话主题。 */
+    private final Constants.Theme theme;
 
     /** The live tile grid for this session. */
     private final GameBoard board;
@@ -82,10 +88,12 @@ public class GameSession {
      * @param deadEndDetector the dead-end detector for hint and lose-condition logic
      */
     public GameSession(Constants.Difficulty difficulty,
+                       Constants.Theme theme,
                        GameBoard board,
                        PathFinder pathFinder,
                        DeadEndDetector deadEndDetector) {
         this.difficulty = difficulty;
+        this.theme = theme == null ? Constants.Theme.THEME1 : theme;
         this.board = board;
         this.pathFinder = pathFinder;
         this.deadEndDetector = deadEndDetector;
@@ -125,13 +133,19 @@ public class GameSession {
         }
 
         int pattern = board.tileAt(p1).patternId();
+        int pattern2 = board.tileAt(p2).patternId();
         board.clear(p1);
         board.clear(p2);
         lastPath = path;
 
         int added = comboManager.onEliminate();
         score += added;
-        operationLog.update("Eliminated [" + pattern + "] x2, +" + added + " points");
+        if (theme == Constants.Theme.THEME2) {
+            operationLog.update("Matched [" + labelForPattern(pattern) + " - "
+                    + labelForPattern(pattern2) + "], +" + added + " points");
+        } else {
+            operationLog.update("Eliminated [" + pattern + "] x2, +" + added + " points");
+        }
 
         // Board state changed — cached dead-end result is no longer valid.
         noValidMovesCache = null;
@@ -220,6 +234,7 @@ public class GameSession {
         return new GameSnapshot(
                 username,
                 difficulty,
+                theme,
                 board.exportPatternGrid(),
                 score,
                 timeLeft,
@@ -258,12 +273,17 @@ public class GameSession {
                                            DeadEndDetector deadEndDetector) {
         GameBoard board = new GameBoard(
                 snapshot.difficulty().rows(),
-                snapshot.difficulty().cols()
+                snapshot.difficulty().cols(),
+                snapshot.theme() == null ? Constants.Theme.THEME1 : snapshot.theme()
         );
         board.importPatternGrid(snapshot.boardGrid());
 
         GameSession session = new GameSession(
-                snapshot.difficulty(), board, pathFinder, deadEndDetector
+                snapshot.difficulty(),
+                snapshot.theme() == null ? Constants.Theme.THEME1 : snapshot.theme(),
+                board,
+                pathFinder,
+                deadEndDetector
         );
 
         // Restore scalar state directly — these fields are set from the snapshot
@@ -312,6 +332,51 @@ public class GameSession {
      */
     public int score() {
         return score;
+    }
+
+    public Constants.Theme theme() {
+        return theme;
+    }
+
+    public boolean isChinesePattern(int patternId) {
+        if (theme == Constants.Theme.THEME2) {
+            return !Theme2VocabularyData.isEnglishPattern(patternId);
+        }
+        if (theme == Constants.Theme.THEME3) {
+            return true;
+        }
+        if (theme == Constants.Theme.THEME4) {
+            return true;
+        }
+        return false;
+    }
+
+    public String labelForPattern(int patternId) {
+        if (theme == Constants.Theme.THEME1) {
+            return String.valueOf(patternId);
+        }
+        if (theme == Constants.Theme.THEME2) {
+            if (Theme2VocabularyData.isEnglishPattern(patternId)) {
+                String en = Theme2VocabularyData.englishForPattern(patternId);
+                return en == null ? String.valueOf(patternId) : en;
+            }
+            String zh = Theme2VocabularyData.chineseForPattern(patternId);
+            return zh == null ? String.valueOf(patternId) : zh;
+        }
+        if (theme == Constants.Theme.THEME3) {
+            if (Theme3PoemData.isFirstLinePattern(patternId)) {
+                String first = Theme3PoemData.firstLineForPattern(patternId);
+                return first == null ? String.valueOf(patternId) : first;
+            }
+            String second = Theme3PoemData.secondLineForPattern(patternId);
+            return second == null ? String.valueOf(patternId) : second;
+        }
+        if (Theme4YauData.isFirstLinePattern(patternId)) {
+            String first = Theme4YauData.firstLineForPattern(patternId);
+            return first == null ? String.valueOf(patternId) : first;
+        }
+        String second = Theme4YauData.secondLineForPattern(patternId);
+        return second == null ? String.valueOf(patternId) : second;
     }
 
     /**

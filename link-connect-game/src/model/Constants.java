@@ -22,6 +22,26 @@ public final class Constants {
     public static final String SAVE_DIR = DATA_DIR + "/saves";
 
     /**
+     * 主题配置。
+     */
+    public enum Theme {
+        THEME1("theme1"),
+        THEME2("theme2"),
+        THEME3("theme3"),
+        THEME4("theme4");
+
+        private final String id;
+
+        Theme(String id) {
+            this.id = id;
+        }
+
+        public String id() {
+            return id;
+        }
+    }
+
+    /**
      * 游戏难度参数。
      */
     public enum Difficulty {

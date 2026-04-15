@@ -1,5 +1,8 @@
 package logic;
 
+import data.Theme2VocabularyData;
+import data.Theme3PoemData;
+import data.Theme4YauData;
 import model.Constants;
 import model.GameBoard;
 import model.Position;
@@ -68,9 +71,9 @@ public class BoardGenerator {
      * @return a randomly generated {@link GameBoard}, validated for clearability
      *         in the common case
      */
-    public GameBoard generate(Constants.Difficulty difficulty) {
+    public GameBoard generate(Constants.Difficulty difficulty, Constants.Theme theme) {
         for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
-            GameBoard board = randomBoard(difficulty);
+            GameBoard board = randomBoard(difficulty, theme);
             // Simulate clearing on a deep copy so the original remains intact.
             if (isCleanable(board.deepCopy())) {
                 return board;
@@ -78,7 +81,7 @@ public class BoardGenerator {
         }
         // Fallback: return an unvalidated board. The in-game reshuffle can
         // rescue the player if a dead-end is reached during play.
-        return randomBoard(difficulty);
+        return randomBoard(difficulty, theme);
     }
 
     /**
@@ -130,7 +133,7 @@ public class BoardGenerator {
      * @throws IllegalStateException if {@code rows × cols} is odd (would leave
      *         one tile without a matching partner)
      */
-    private GameBoard randomBoard(Constants.Difficulty difficulty) {
+    private GameBoard randomBoard(Constants.Difficulty difficulty, Constants.Theme theme) {
         int rows = difficulty.rows();
         int cols = difficulty.cols();
         int total = rows * cols;
@@ -144,16 +147,73 @@ public class BoardGenerator {
             );
         }
 
-        GameBoard board = new GameBoard(rows, cols);
+        Constants.Theme safeTheme = theme == null ? Constants.Theme.THEME1 : theme;
+        if (safeTheme == Constants.Theme.THEME2 && !Theme2VocabularyData.isAvailable()) {
+            safeTheme = Constants.Theme.THEME1;
+        }
+        if (safeTheme == Constants.Theme.THEME3 && !Theme3PoemData.isAvailable()) {
+            safeTheme = Constants.Theme.THEME1;
+        }
+        if (safeTheme == Constants.Theme.THEME4 && !Theme4YauData.isAvailable()) {
+            safeTheme = Constants.Theme.THEME1;
+        }
+
+        GameBoard board = new GameBoard(rows, cols, safeTheme);
 
         // Build a list of paired pattern IDs and shuffle it.
-        int patternCount = difficulty.patternCount();
         List<Integer> ids = new ArrayList<>(total);
-        for (int i = 0; i < total / 2; i++) {
-            // Cycle through pattern IDs 1..patternCount, adding each one twice.
-            int pattern = (i % patternCount) + 1;
-            ids.add(pattern);
-            ids.add(pattern);
+        if (safeTheme == Constants.Theme.THEME2) {
+            int pairSlots = total / 2;
+            int uniqueTarget = Math.min(pairSlots, Math.max(8, difficulty.patternCount() * 2));
+            List<Integer> selectedIds = Theme2VocabularyData.randomEntryIds(uniqueTarget);
+            if (selectedIds.isEmpty()) {
+                safeTheme = Constants.Theme.THEME1;
+                board = new GameBoard(rows, cols, safeTheme);
+            } else {
+                for (int i = 0; i < pairSlots; i++) {
+                    int vocabId = selectedIds.get(i % selectedIds.size());
+                    ids.add(Theme2VocabularyData.englishPatternId(vocabId));
+                    ids.add(Theme2VocabularyData.chinesePatternId(vocabId));
+                }
+            }
+        } else if (safeTheme == Constants.Theme.THEME3) {
+            int pairSlots = total / 2;
+            int uniqueTarget = Math.min(pairSlots, Math.max(8, difficulty.patternCount() * 2));
+            List<Integer> selectedIds = Theme3PoemData.randomEntryIds(uniqueTarget);
+            if (selectedIds.isEmpty()) {
+                safeTheme = Constants.Theme.THEME1;
+                board = new GameBoard(rows, cols, safeTheme);
+            } else {
+                for (int i = 0; i < pairSlots; i++) {
+                    int poemId = selectedIds.get(i % selectedIds.size());
+                    ids.add(Theme3PoemData.firstPatternId(poemId));
+                    ids.add(Theme3PoemData.secondPatternId(poemId));
+                }
+            }
+        } else if (safeTheme == Constants.Theme.THEME4) {
+            int pairSlots = total / 2;
+            int uniqueTarget = Math.min(pairSlots, Math.max(8, difficulty.patternCount() * 2));
+            List<Integer> selectedIds = Theme4YauData.randomEntryIds(uniqueTarget);
+            if (selectedIds.isEmpty()) {
+                safeTheme = Constants.Theme.THEME1;
+                board = new GameBoard(rows, cols, safeTheme);
+            } else {
+                for (int i = 0; i < pairSlots; i++) {
+                    int yauId = selectedIds.get(i % selectedIds.size());
+                    ids.add(Theme4YauData.firstPatternId(yauId));
+                    ids.add(Theme4YauData.secondPatternId(yauId));
+                }
+            }
+        }
+
+        if (safeTheme == Constants.Theme.THEME1) {
+            int patternCount = difficulty.patternCount();
+            for (int i = 0; i < total / 2; i++) {
+                // Cycle through pattern IDs 1..patternCount, adding each one twice.
+                int pattern = (i % patternCount) + 1;
+                ids.add(pattern);
+                ids.add(pattern);
+            }
         }
         Collections.shuffle(ids, ThreadLocalRandom.current());
 

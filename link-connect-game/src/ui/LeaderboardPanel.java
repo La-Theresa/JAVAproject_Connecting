@@ -22,7 +22,7 @@ public class LeaderboardPanel extends JPanel {
         area.setEditable(false);
         area.setBackground(AuthUiKit.TEXTBOX_BG);
         area.setForeground(new Color(30, 30, 30));
-        area.setFont(new Font("Arial", Font.PLAIN, 15));
+        area.setFont(AuthUiKit.localizedSansFont("", Font.PLAIN, 15));
         area.setBorder(new EmptyBorder(12, 16, 12, 16));
         add(area, BorderLayout.CENTER);
 
@@ -35,6 +35,8 @@ public class LeaderboardPanel extends JPanel {
      * 刷新排行榜文本。
      */
     public void updateLines(List<String> lines) {
-        area.setText(String.join("\n", lines));
+        String content = String.join("\n", lines);
+        area.setFont(AuthUiKit.localizedSansFont(content, Font.PLAIN, 15));
+        area.setText(content);
     }
 }

@@ -39,7 +39,7 @@ public class RegisterPanel extends JPanel {
         content.add(Box.createVerticalStrut(28));
 
         JLabel userLabel = new JLabel("Username");
-        userLabel.setFont(new java.awt.Font(AuthUiKit.BODY_FONT_FAMILY, java.awt.Font.PLAIN, 14));
+        AuthUiKit.applyLocalizedLabelFont(userLabel, false, java.awt.Font.PLAIN, 14);
         userLabel.setHorizontalAlignment(SwingConstants.CENTER);
         userLabel.setAlignmentX(CENTER_ALIGNMENT);
         content.add(userLabel);
@@ -52,7 +52,7 @@ public class RegisterPanel extends JPanel {
         content.add(Box.createVerticalStrut(18));
 
         JLabel passLabel = new JLabel("Password");
-        passLabel.setFont(new java.awt.Font(AuthUiKit.BODY_FONT_FAMILY, java.awt.Font.PLAIN, 14));
+        AuthUiKit.applyLocalizedLabelFont(passLabel, false, java.awt.Font.PLAIN, 14);
         passLabel.setHorizontalAlignment(SwingConstants.CENTER);
         passLabel.setAlignmentX(CENTER_ALIGNMENT);
         content.add(passLabel);

@@ -33,6 +33,9 @@ public class GameBoard implements Serializable {
     /** Number of columns on the board (fixed at construction). */
     private final int cols;
 
+    /** 当前棋盘主题。 */
+    private final Constants.Theme theme;
+
     /**
      * The raw tile grid. {@code tiles[r][c]} holds the {@link Tile} at row
      * {@code r}, column {@code c}. A tile with patternId 0 is considered empty.
@@ -63,8 +66,13 @@ public class GameBoard implements Serializable {
      * @param cols number of columns (must be > 0)
      */
     public GameBoard(int rows, int cols) {
+        this(rows, cols, Constants.Theme.THEME1);
+    }
+
+    public GameBoard(int rows, int cols, Constants.Theme theme) {
         this.rows = rows;
         this.cols = cols;
+        this.theme = theme == null ? Constants.Theme.THEME1 : theme;
         this.tiles = new Tile[rows][cols];
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
@@ -90,6 +98,10 @@ public class GameBoard implements Serializable {
      */
     public int cols() {
         return cols;
+    }
+
+    public Constants.Theme theme() {
+        return theme;
     }
 
     /**
@@ -174,6 +186,19 @@ public class GameBoard implements Serializable {
         return emptyPositions.contains(p);
     }
 
+    public boolean canMatchPatterns(int patternA, int patternB) {
+        if (patternA <= 0 || patternB <= 0) {
+            return false;
+        }
+        if (theme == Constants.Theme.THEME1) {
+            return patternA == patternB;
+        }
+        int pairA = (patternA + 1) / 2;
+        int pairB = (patternB + 1) / 2;
+        boolean sideDifferent = (patternA % 2) != (patternB % 2);
+        return pairA == pairB && sideDifferent;
+    }
+
     /**
      * Returns a snapshot copy of the positions currently holding the given
      * pattern. The returned set is a defensive copy — mutations do not affect
@@ -238,7 +263,7 @@ public class GameBoard implements Serializable {
      * @return a new {@link GameBoard} with identical state
      */
     public GameBoard deepCopy() {
-        GameBoard copy = new GameBoard(rows, cols);
+        GameBoard copy = new GameBoard(rows, cols, theme);
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
                 Position p = new Position(r, c);

@@ -116,11 +116,11 @@ public class MainMenuPanel extends JPanel {
         textBlock.setOpaque(false);
         textBlock.setLayout(new BoxLayout(textBlock, BoxLayout.Y_AXIS));
         JLabel title = new JLabel("Choose how to get started", SwingConstants.CENTER);
-        title.setFont(new Font(AuthUiKit.TITLE_FONT_FAMILY, Font.BOLD, 56));
+        AuthUiKit.applyLocalizedLabelFont(title, true, Font.BOLD, 56);
         title.setForeground(TEXT_MAIN);
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
         greetingLabel = new JLabel("Jump straight into a clean, modern match.", SwingConstants.CENTER);
-        greetingLabel.setFont(new Font(AuthUiKit.BODY_FONT_FAMILY, Font.PLAIN, 16));
+        AuthUiKit.applyLocalizedLabelFont(greetingLabel, false, Font.PLAIN, 16);
         greetingLabel.setForeground(TEXT_SUB);
         greetingLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         textBlock.add(Box.createVerticalStrut(4));
@@ -139,8 +139,8 @@ public class MainMenuPanel extends JPanel {
 
         JPanel primaryRow = new JPanel(new GridLayout(1, 2, 16, 0));
         primaryRow.setOpaque(false);
-        primaryRow.add(createStartCard("Easy", "4 × 4 board · 60 sec", ACCENT, e -> controller.startGame(Constants.Difficulty.EASY)));
-        primaryRow.add(createStartCard("Hard", "10 × 10 board · 120 sec", ACCENT, e -> controller.startGame(Constants.Difficulty.HARD)));
+        primaryRow.add(createStartCard("Easy", "4 × 4 board · 60 sec · choose theme", ACCENT, e -> controller.startGame(Constants.Difficulty.EASY)));
+        primaryRow.add(createStartCard("Hard", "10 × 10 board · 120 sec · choose theme", ACCENT, e -> controller.startGame(Constants.Difficulty.HARD)));
         actionArea.add(primaryRow, BorderLayout.NORTH);
 
         JPanel secondaryRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
@@ -319,7 +319,7 @@ public class MainMenuPanel extends JPanel {
             setContentAreaFilled(false);
             setOpaque(false);
             setForeground(foregroundColor);
-            setFont(new Font(AuthUiKit.TITLE_FONT_FAMILY, Font.BOLD, 16));
+            AuthUiKit.applyLocalizedButtonFont(this, true, Font.BOLD, 16);
             setMargin(new java.awt.Insets(10, 16, 10, 16));
             setPreferredSize(new Dimension(width, height));
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -383,7 +383,7 @@ public class MainMenuPanel extends JPanel {
             setContentAreaFilled(false);
             setOpaque(false);
             setForeground(AuthUiKit.BUTTON_TEXT);
-            setFont(new Font(AuthUiKit.TITLE_FONT_FAMILY, Font.BOLD, 22));
+            AuthUiKit.applyLocalizedButtonFont(this, true, Font.BOLD, 22);
             setHorizontalAlignment(SwingConstants.CENTER);
             setVerticalAlignment(SwingConstants.CENTER);
             setMargin(new java.awt.Insets(18, 20, 18, 20));
@@ -398,8 +398,8 @@ public class MainMenuPanel extends JPanel {
             g2.setColor(getModel().isRollover() ? baseColor.brighter() : baseColor);
             g2.fill(new RoundRectangle2D.Double(0, 0, getWidth() - 1, getHeight() - 1, 28, 28));
             g2.setColor(AuthUiKit.BUTTON_TEXT);
-            Font titleFont = new Font(AuthUiKit.TITLE_FONT_FAMILY, Font.BOLD, 22);
-            Font subFont = new Font(AuthUiKit.BODY_FONT_FAMILY, Font.PLAIN, 13);
+            Font titleFont = AuthUiKit.localizedSerifFont(title, Font.BOLD, 22);
+            Font subFont = AuthUiKit.localizedSansFont(subtitle, Font.PLAIN, 13);
             g2.setFont(titleFont);
             java.awt.FontMetrics titleFm = g2.getFontMetrics(titleFont);
             g2.setFont(subFont);
