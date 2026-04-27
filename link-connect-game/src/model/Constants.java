@@ -45,8 +45,8 @@ public final class Constants {
      * 游戏难度参数。
      */
     public enum Difficulty {
-        EASY(4, 4, 60, 4),
-        HARD(10, 10, 120, 12);
+        EASY(11, 11, 60, 4),
+        HARD(12, 12, 120, 12);
 
         private final int rows;
         private final int cols;

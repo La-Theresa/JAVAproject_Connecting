@@ -8,44 +8,40 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * PathFinder implements the core pathfinding logic for the Link Connect game.
+ * PathFinder 是这里的核心逻辑
  *
- * <p>It determines whether two tiles can be connected by a path with at most 2
- * direction changes (turns), and returns the connecting path as a sequence of
- * key waypoints if one exists.
+ * <p>判断是否可连，返回路径或NULL
  *
- * <p>This implementation uses a single geometric probing strategy based on the
- * at-most-2-turns rule. It can both:
+ * <p>通过两折的路径限制
  * <ul>
- *   <li>answer existence queries quickly ({@link #canConnect(GameBoard, Position, Position)}), and</li>
- *   <li>build drawable key-waypoint paths ({@link #findPath(GameBoard, Position, Position)}).</li>
+ *   <li>判断存在 ({@link #canConnect(GameBoard, Position, Position)}), and</li>
+ *   <li>创造路径以显示 ({@link #findPath(GameBoard, Position, Position)}).</li>
  * </ul>
  */
 public class PathFinder {
 
-    /** Row deltas for the 4 movement directions: up, down, left, right. */
+    /** 后续水平移动参数 */
     private static final int[] DR = {-1, 1, 0, 0};
 
-    /** Column deltas for the 4 movement directions: up, down, left, right. */
+    /** 后续垂直移动参数 */
     private static final int[] DC = {0, 0, -1, 1};
 
     /**
-     * Finds a valid path connecting {@code start} to {@code end} on the board,
-     * respecting the at-most-2-turns constraint, or returns {@code null} if no
-     * such path exists.
+     * 判断两格是否可连接（存在满足条件的路径），不构建路径细节。
+     * 返回 {@code null} 若不存在路径。
      *
-     * <p>Pre-conditions checked:
+     * <p>条件判断:
      * <ul>
-     *   <li>Start and end are not the same position.</li>
-     *   <li>Both positions are within board bounds.</li>
-     *   <li>Neither position is empty (patternId == 0).</li>
-     *   <li>Both tiles carry the same pattern.</li>
+     *   <li>不为同一点</li>
+     *   <li>在棋盘内</li>
+     *   <li>非空</li>
+     *   <li>相同图案</li>
      * </ul>
      *
-     * @param board the current game board
-     * @param start the first tile position (0-indexed row/col)
-     * @param end   the second tile position (0-indexed row/col)
-     * @return a {@link Path} of key waypoints if connectable, or {@code null}
+     * @param board 当前棋盘
+     * @param start 第一格位置 (0-indexed行列)
+     * @param end   第二格位置 (0-indexed行列)
+     * @return 路径节点 {@link Path} 或 {@code null}
      */
     public Path findPath(GameBoard board, Position start, Position end) {
         List<Position> fastWaypoints = findWaypointsByKeyCorners(board, start, end);
@@ -56,49 +52,47 @@ public class PathFinder {
     }
 
     /**
-     * Checks whether two positions on the board can be connected.
+     * 检查两格是否可连接（存在满足条件的路径），不构建路径细节。
      *
-     * <p>This method is an existence-only fast path:
+     * <p>实现思路：基于最多两转的规则，使用几何寻找连接路径：
      * <ol>
-     *   <li>From {@code start}, scan along 4 rays in the extended board
-     *       (including virtual border).</li>
-     *   <li>For each ray point {@code p}, check if {@code p -> end} is directly clear
-     *       (1 turn), or if either corner composition is clear:
-     *       {@code p -> (p.row,end.col) -> end} / {@code p -> (end.row,p.col) -> end}
-     *       (2 turns).</li>
+     *   <li>从点 {@code start}, 沿四个方向射线扫描合法转折点
+     *       (包括边界).</li>
+     *   <li>在每个折点 {@code p}, 判断{@code p -> end} 是否可连
+     *       (1 折), 或者存在2 折路径:
+     *       {@code p -> (p.row,end.col) -> end} / {@code p -> (end.row,p.col) -> end}.</li>
      * </ol>
      *
-     * <p>Because the game only needs an existence judgment in many hot paths,
-     * this avoids full-board BFS expansion.
+     * <p>这可以优化BFS的搜索空间，避免了冗余路径探索。
      *
-     * @param board the current game board
-     * @param start the first tile position
-     * @param end   the second tile position
-     * @return {@code true} if a valid connecting path exists
+     * @param board 当前棋盘
+     * @param start 起点 (选择的第一个点)
+     * @param end   终点 (选择的第二个点)
+     * @return {@code true} 存在路径
      */
     public boolean canConnect(GameBoard board, Position start, Position end) {
         return findWaypointsByKeyCorners(board, start, end) != null;
     }
 
     // -------------------------------------------------------------------------
-    // Private helpers
+    // 具体实现方法
     // -------------------------------------------------------------------------
 
     /**
-     * Uses directional probing to find a connectable route and returns compact
-     * waypoints (start, up to two corners, end). Returns {@code null} if none.
+     * 使用关键转折点（起点、终点、两候选转折点、以及沿四射线的潜在转折点）寻找连接路径。
+     * 如果存在，返回包含起点、转折点、终点的路径 {@link #buildCompactWaypoints(Position...)}；否则返回 {@code null}。
      */
     private List<Position> findWaypointsByKeyCorners(GameBoard board, Position start, Position end) {
         if (!isPairConnectable(board, start, end)) {
             return null;
         }
 
-        // 0-turn direct connection.
+        // 0 折点连接：直接判断两者是否相通。
         if (isStraightClear(board, start.row(), start.col(), end.row(), end.col(), start, end)) {
             return buildCompactWaypoints(start, end);
         }
 
-        // 1-turn fast precheck: only two L-shape corner candidates exist.
+        // 1 折点连接：尝试两个候选转折点 (start.row, end.col) 和 (end.row, start.col)，
         int c1r = start.row();
         int c1c = end.col();
         if (isPassableRC(board, c1r, c1c, start, end)
@@ -115,9 +109,8 @@ public class PathFinder {
             return buildCompactWaypoints(start, new Position(c2r, c2c), end);
         }
 
-        // Directional probing from start: scan key candidates on four rays.
-        // Jump pruning: if a corner branch's end-leg is direction-invariant and
-        // already blocked, skip that branch for the rest of this ray.
+        // 考虑四个方向的射线，寻找潜在的转折点 p。
+        // 对于每个 p，尝试两个转折组合，并利用剪枝优化同一分支的后续 p。
         for (int d = 0; d < 4; d++) {
             int r = start.row();
             int c = start.col();
@@ -138,12 +131,10 @@ public class PathFinder {
                     break;
                 }
 
-                // 1-turn candidate: start -> p -> end.
-                if (isStraightClear(board, r, c, end.row(), end.col(), start, end)) {
-                    return buildCompactWaypoints(start, new Position(r, c), end);
-                }
+                // 1 折点路径: start -> p -> end. 已经在外层循环里直接判断了。
 
-                // 2-turn candidate: start -> p -> (p.row, end.col) -> end.
+                // 2 折点路径: start -> p -> (p.row, end.col) -> end.
+                // 对于上下射线的情况重复，但为了代码对称性和清晰度保留。
                 int corner1r = r;
                 int corner1c = end.col();
                 if (!pruneCorner1Branch) {
@@ -178,7 +169,8 @@ public class PathFinder {
                     }
                 }
 
-                // 2-turn candidate: start -> p -> (end.row, p.col) -> end.
+                // 2 折点路径: start -> p -> (end.row, p.col) -> end.
+                // 对于竖射线的情况重复，但为了代码对称性和清晰度保留。
                 int corner2r = end.row();
                 int corner2c = c;
                 if (!pruneCorner2Branch) {
@@ -218,7 +210,7 @@ public class PathFinder {
     }
 
     /**
-     * Shared precondition check for connectivity/path queries.
+     * 判断两格是否满足基本连接条件（同类、非空、不同格）。
      */
     private boolean isPairConnectable(GameBoard board, Position start, Position end) {
         if (start.equals(end)) {
@@ -234,8 +226,7 @@ public class PathFinder {
     }
 
     /**
-     * Builds a compact waypoint list by removing duplicate points and
-     * collapsing collinear middle points.
+     * 创造路径转折点和起点
      */
     private List<Position> buildCompactWaypoints(Position... candidates) {
         List<Position> unique = new ArrayList<>();
@@ -273,16 +264,14 @@ public class PathFinder {
     }
 
     /**
-     * Returns {@code true} if a coordinate is inside the logical board extended
-     * by one virtual border cell on each side.
+     * 确认在合法的扩展范围内（包含虚拟边界）
      */
     private boolean isWithinExtended(GameBoard board, int row, int col) {
         return row >= -1 && row <= board.rows() && col >= -1 && col <= board.cols();
     }
 
     /**
-     * A probing point is passable when it is virtual border, start/end, or an
-     * empty in-board cell.
+     * 合法转折点
      */
     private boolean isPassableRC(GameBoard board, int row, int col, Position start, Position end) {
         if (row == -1 || row == board.rows() || col == -1 || col == board.cols()) {
@@ -299,8 +288,7 @@ public class PathFinder {
     }
 
     /**
-     * Checks whether two points are aligned and all intermediate cells are
-     * passable for a route segment.
+     * 确认二者相通
      */
     private boolean isStraightClear(GameBoard board,
                                     int aRow,

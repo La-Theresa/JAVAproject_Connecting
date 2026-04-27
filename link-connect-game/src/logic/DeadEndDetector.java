@@ -13,54 +13,39 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * DeadEndDetector checks whether the current game board has at least one valid
- * move remaining, and can return a concrete connectable pair for use as a hint.
+ * DeadEndDetector 判断是否死局，并可返回一个可连接的配对作 hint。
  *
- * <p>Optimisation: pair iteration uses a double-index approach over the
- * {@code patternLocations} index to avoid duplicated symmetric checks.
- * For each pattern group, pairs are only evaluated as {@code (i, j)} where
- * {@code i < j}, cutting the work roughly in half compared to a naive
- * nested loop over all non-empty positions.
+ * <p>优化: 只判断C^{n}_{2}个存在块，这里显然</p>
  */
 public class DeadEndDetector {
 
-    /** The path finder used to verify whether two tiles can actually be connected. */
     private final PathFinder pathFinder;
 
     /**
-     * Constructs a DeadEndDetector backed by the given path finder.
+     * 构造 DeadEndDetector
      *
-     * @param pathFinder the {@link PathFinder} instance to use for connectivity
-     *                   checks; must not be {@code null}
+     * @param pathFinder 用于检测路径的 PathFinder
      */
     public DeadEndDetector(PathFinder pathFinder) {
         this.pathFinder = pathFinder;
     }
 
     /**
-     * Returns {@code true} if the board has at least one pair of tiles that
-     * can currently be connected and removed.
-     *
-     * @param board the game board to inspect
-     * @return {@code true} if any valid move exists, {@code false} if the board
-     *         is in a dead-end state (no removable pair)
+     * 返回 {@code true} 若存在可连对
      */
     public boolean hasAnyValidMove(GameBoard board) {
         return findAnyPair(board) != null;
     }
 
     /**
-     * Searches the board for any pair of same-pattern tiles that can be
-     * connected under the at-most-2-turns rule, and returns them.
+     * 寻找可连对并返回
      *
-     * <p>Strategy: for each pattern type still present on the board, iterate
-     * over all positions carrying that pattern as an ordered list and only
-     * check pairs {@code (i, j)} with {@code i < j}. This avoids redundant
-     * symmetric checks (checking both {@code (p,q)} and {@code (q,p)}).
-     *
-     * @param board the game board to inspect
-     * @return a two-element {@code Position[]} {@code {p, q}} representing a
-     *         connectable pair, or {@code null} if no such pair exists
+     * <p>对于存在块i 和 块j，只判断 {@code (i, j)} 中 {@code i < j}。避免对称重复检查。</p>
+     * 
+     * <p>对于不同theme, 直接复制到其他函数
+     * 
+     * @param board 游戏棋盘
+     * @return 两个 {@code Position[]} {@code {p, q}} 代表可连对， 或 {@code null} 若无
      */
     public Position[] findAnyPair(GameBoard board) {
         if (board.theme() == Constants.Theme.THEME2) {
@@ -77,15 +62,13 @@ public class DeadEndDetector {
             List<Position> group = new ArrayList<>(entry.getValue());
             int size = group.size();
 
-            // With only one tile of this pattern left, no pair is possible.
+            // 该图案清空或仅剩1块，不可能有配对
             if (size < 2) {
                 continue;
             }
 
             /*
-             * For each unique unordered pair (i, j) with i < j, check
-             * connectivity. Checking only i < j cuts iterations by ~50%
-             * versus checking all ordered pairs.
+             * 判断两个块 (i, j) 中 i < j
              */
             for (int i = 0; i < size - 1; i++) {
                 for (int j = i + 1; j < size; j++) {
@@ -95,9 +78,15 @@ public class DeadEndDetector {
                 }
             }
         }
-        return null; // No connectable pair found anywhere on the board.
+        return null;
     }
 
+    /**
+     * 查找 Theme2 中的可连接配对
+     * 跨图案配对，调用 parrtern ID
+     * @param board 游戏棋盘
+     * @return 可连接的两个 Position，或 null 若无
+     */
     private Position[] findTheme2Pair(GameBoard board) {
         for (Map.Entry<Integer, Set<Position>> entry : board.patternEntries()) {
             int pattern = entry.getKey();
@@ -121,6 +110,12 @@ public class DeadEndDetector {
         return null;
     }
 
+    /**
+     * 查找 Theme3 中的可连接配对
+     * 跨图案配对，调用 parrtern ID
+     * @param board 游戏棋盘
+     * @return 可连接的两个 Position，或 null 若无
+     */
     private Position[] findTheme3Pair(GameBoard board) {
         for (Map.Entry<Integer, Set<Position>> entry : board.patternEntries()) {
             int pattern = entry.getKey();
@@ -144,6 +139,12 @@ public class DeadEndDetector {
         return null;
     }
 
+    /**
+     * 查找 Theme4中的可连接配对
+     * 跨图案配对，调用 parrtern ID
+     * @param board 游戏棋盘
+     * @return 可连接的两个 Position，或 null 若无
+     */
     private Position[] findTheme4Pair(GameBoard board) {
         for (Map.Entry<Integer, Set<Position>> entry : board.patternEntries()) {
             int pattern = entry.getKey();
@@ -167,6 +168,14 @@ public class DeadEndDetector {
         return null;
     }
 
+    /**
+     * 在两种不同图案之间查找可连接配对
+     *
+     * @param board        游戏棋盘
+     * @param firstPattern  第一个图案 ID
+     * @param secondPattern 第二个图案 ID
+     * @return 可连接的两个 Position，或 null 若无
+     */
     private Position[] findConnectableAcrossTwoPatterns(GameBoard board, int firstPattern, int secondPattern) {
         if (firstPattern <= 0 || secondPattern <= 0) {
             return null;

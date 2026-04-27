@@ -11,7 +11,7 @@ public class Tile implements Serializable {
 
     /**
      * 构造图案方块。
-     * @param position 方块所在位置
+     * @param position 方块所在位置（基本不使用，避免创建新对象）
      * @param patternId 图案编号，0表示空
      */
     public Tile(Position position, int patternId) {

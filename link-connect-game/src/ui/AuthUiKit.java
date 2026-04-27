@@ -9,9 +9,6 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.JPasswordField;
 import javax.swing.SwingConstants;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.text.JTextComponent;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import java.awt.BasicStroke;
@@ -41,15 +38,15 @@ public final class AuthUiKit {
     public static final Color BUTTON_BG = new Color(240, 238, 230);
     public static final Color BUTTON_TEXT = new Color(0, 0, 0);
 
-    public static final String TITLE_FONT_FAMILY = resolveFontFamily("EB Garamond", "Garamond", "Serif");
-    public static final String BODY_FONT_FAMILY = resolveFontFamily("Arial", "SansSerif");
+        public static final String ENGLISH_SERIF_FONT_FAMILY = resolveFontFamily("EB Garamond", "Garamond", "Serif");
+        public static final String ENGLISH_SANS_FONT_FAMILY = resolveFontFamily("Arial", "SansSerif");
         public static final String CHINESE_SERIF_FONT_FAMILY = resolveFontFamily(
             "Source Han Serif SC SemiBold",
             "Source Han Serif CN SemiBold",
             "Source Han Serif SC",
             "Source Han Serif CN",
+            "Noto Serif CJK SC SemiBold",
             "Noto Serif CJK SC",
-            "STSong",
             "Serif"
         );
         public static final String CHINESE_SANS_FONT_FAMILY = resolveFontFamily(
@@ -57,16 +54,19 @@ public final class AuthUiKit {
             "Source Han Sans CN SemiBold",
             "Source Han Sans SC",
             "Source Han Sans CN",
+            "Noto Sans CJK SC Medium",
             "Noto Sans CJK SC",
             "Microsoft YaHei UI",
             "Microsoft YaHei",
-            "PingFang SC",
             "SansSerif"
         );
 
+        public static final String TITLE_FONT_FAMILY = ENGLISH_SERIF_FONT_FAMILY;
+        public static final String BODY_FONT_FAMILY = ENGLISH_SANS_FONT_FAMILY;
+
     public static final Font TITLE_FONT = new Font(TITLE_FONT_FAMILY, Font.BOLD, 36);
-    public static final Font BUTTON_FONT = new Font(TITLE_FONT_FAMILY, Font.BOLD, 20);
-    public static final Font BODY_FONT = new Font(BODY_FONT_FAMILY, Font.PLAIN, 14);
+    public static final Font BUTTON_FONT = new Font(BODY_FONT_FAMILY, Font.BOLD, 20);
+    public static final Font BODY_FONT = new Font(BODY_FONT_FAMILY, Font.BOLD, 14);
 
     private AuthUiKit() {
     }
@@ -129,11 +129,11 @@ public final class AuthUiKit {
 
         JLabel titleLabel = new JLabel(title, SwingConstants.CENTER);
         titleLabel.setForeground(Color.WHITE);
-        applyLocalizedLabelFont(titleLabel, true, Font.BOLD, 36);
+        titleLabel.setFont(TITLE_FONT);
 
         JLabel subLabel = new JLabel(subtitle, SwingConstants.CENTER);
         subLabel.setForeground(new Color(240, 240, 240));
-        applyLocalizedLabelFont(subLabel, false, Font.PLAIN, 14);
+        subLabel.setFont(localizedSansFont(subtitle, Font.BOLD, 14));
 
         JPanel text = new JPanel();
         text.setOpaque(false);
@@ -159,29 +159,41 @@ public final class AuthUiKit {
 
     public static JButton createPrimaryButton(String text) {
         JButton button = new RoundedRectTextButton(text, 14, 12, 18);
-        applyLocalizedButtonFont(button, true, Font.BOLD, 20);
+        button.setFont(localizedSerifFont(text, Font.BOLD, 20));
         return button;
     }
 
     public static JButton createTextButton(String text) {
         JButton button = new RoundedRectTextButton(text, 12, 8, 14);
-        applyLocalizedButtonFont(button, true, Font.BOLD, 18);
+        button.setFont(localizedSerifFont(text, Font.BOLD, 18));
         return button;
     }
 
     public static JLabel createErrorLabel() {
         JLabel label = new JLabel(" ", SwingConstants.CENTER);
         label.setForeground(new Color(231, 111, 81));
-        applyLocalizedLabelFont(label, false, Font.PLAIN, 13);
+        label.setFont(localizedSansFont("", Font.BOLD, 13));
         return label;
     }
 
+    public static Font localizedSerifFont(String text, int style, int size) {
+        return new Font(containsChinese(text) ? CHINESE_SERIF_FONT_FAMILY : ENGLISH_SERIF_FONT_FAMILY, style, size);
+    }
+
+    public static Font localizedSansFont(String text, int style, int size) {
+        return new Font(containsChinese(text) ? CHINESE_SANS_FONT_FAMILY : ENGLISH_SANS_FONT_FAMILY, style, size);
+    }
+
+    public static void applyLocalizedLabelFont(JLabel label, boolean preferSerif, int style, int size) {
+        label.setFont(preferSerif ? localizedSerifFont(label.getText(), style, size) : localizedSansFont(label.getText(), style, size));
+    }
+
+    public static void applyLocalizedButtonFont(AbstractButton button, boolean preferSerif, int style, int size) {
+        button.setFont(preferSerif ? localizedSerifFont(button.getText(), style, size) : localizedSansFont(button.getText(), style, size));
+    }
+
     private static void applyInputStyle(JComponent field) {
-        if (field instanceof JTextComponent) {
-            applyLocalizedTextComponentFont((JTextComponent) field, false, Font.PLAIN, 16);
-        } else {
-            field.setFont(new Font(BODY_FONT_FAMILY, Font.PLAIN, 16));
-        }
+        field.setFont(new Font(BODY_FONT_FAMILY, Font.BOLD, 16));
         field.setBorder(new CompoundBorder(
                 BorderFactory.createLineBorder(new Color(158, 158, 158), 1, true),
                 new EmptyBorder(12, 14, 12, 14)
@@ -203,76 +215,15 @@ public final class AuthUiKit {
         return "SansSerif";
     }
 
-    public static Font localizedSerifFont(String text, int englishStyle, int size) {
-        return localizedFont(text, true, englishStyle, size);
-    }
-
-    public static Font localizedSansFont(String text, int englishStyle, int size) {
-        return localizedFont(text, false, englishStyle, size);
-    }
-
-    public static void applyLocalizedLabelFont(JLabel label, boolean serif, int englishStyle, int size) {
-        label.setFont(localizedFont(label.getText(), serif, englishStyle, size));
-        label.addPropertyChangeListener("text", evt ->
-                label.setFont(localizedFont((String) evt.getNewValue(), serif, englishStyle, size)));
-    }
-
-    public static void applyLocalizedButtonFont(AbstractButton button, boolean serif, int englishStyle, int size) {
-        button.setFont(localizedFont(button.getText(), serif, englishStyle, size));
-        button.addPropertyChangeListener("text", evt ->
-                button.setFont(localizedFont((String) evt.getNewValue(), serif, englishStyle, size)));
-    }
-
-    public static void applyLocalizedTextComponentFont(JTextComponent textComponent, boolean serif, int englishStyle, int size) {
-        textComponent.setFont(localizedFont(textComponent.getText(), serif, englishStyle, size));
-        textComponent.getDocument().addDocumentListener(new DocumentListener() {
-            private void refresh() {
-                textComponent.setFont(localizedFont(textComponent.getText(), serif, englishStyle, size));
-            }
-
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                refresh();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                refresh();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                refresh();
-            }
-        });
-    }
-
-    private static Font localizedFont(String text, boolean serif, int englishStyle, int size) {
-        if (containsChinese(text)) {
-            String chineseFamily = serif ? CHINESE_SERIF_FONT_FAMILY : CHINESE_SANS_FONT_FAMILY;
-            // SemiBold face is encoded in family name, keep style plain to avoid over-bolding.
-            return new Font(chineseFamily, Font.PLAIN, size);
-        }
-        String englishFamily = serif ? TITLE_FONT_FAMILY : BODY_FONT_FAMILY;
-        return new Font(englishFamily, englishStyle, size);
-    }
-
     private static boolean containsChinese(String text) {
         if (text == null || text.isEmpty()) {
             return false;
         }
-        for (int i = 0; i < text.length(); ) {
-            int codePoint = text.codePointAt(i);
-            if ((codePoint >= 0x4E00 && codePoint <= 0x9FFF)
-                    || (codePoint >= 0x3400 && codePoint <= 0x4DBF)
-                    || (codePoint >= 0x20000 && codePoint <= 0x2A6DF)
-                    || (codePoint >= 0x2A700 && codePoint <= 0x2B73F)
-                    || (codePoint >= 0x2B740 && codePoint <= 0x2B81F)
-                    || (codePoint >= 0x2B820 && codePoint <= 0x2CEAF)
-                    || (codePoint >= 0xF900 && codePoint <= 0xFAFF)) {
+        for (int i = 0; i < text.length(); i++) {
+            Character.UnicodeScript script = Character.UnicodeScript.of(text.charAt(i));
+            if (script == Character.UnicodeScript.HAN) {
                 return true;
             }
-            i += Character.charCount(codePoint);
         }
         return false;
     }

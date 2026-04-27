@@ -139,7 +139,7 @@ public class MainMenuPanel extends JPanel {
 
         JPanel primaryRow = new JPanel(new GridLayout(1, 2, 16, 0));
         primaryRow.setOpaque(false);
-        primaryRow.add(createStartCard("Easy", "4 × 4 board · 60 sec · choose theme", ACCENT, e -> controller.startGame(Constants.Difficulty.EASY)));
+        primaryRow.add(createStartCard("Easy", "11 × 11 board · two 4 × 4 blocks · 60 sec · choose theme", ACCENT, e -> controller.startGame(Constants.Difficulty.EASY)));
         primaryRow.add(createStartCard("Hard", "10 × 10 board · 120 sec · choose theme", ACCENT, e -> controller.startGame(Constants.Difficulty.HARD)));
         actionArea.add(primaryRow, BorderLayout.NORTH);
 

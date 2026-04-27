@@ -60,7 +60,7 @@ public class GameController {
         }
     }
 
-    /**11
+    /**
      * 打开注册界面。
      */
     public void openRegister() {

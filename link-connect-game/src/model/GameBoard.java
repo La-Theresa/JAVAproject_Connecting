@@ -10,60 +10,52 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * GameBoard is the authoritative container for the tile grid state.
+ * GameBoard 是各种状态的储存，记录了当前状态
+ * <p>使用 {@code Serializable} 以支持存档 {@link model.GameSnapshot} 的序列化和反序列化
+ * 以及深拷贝 {@link #deepCopy()} 的实现。</p>
  *
- * <p>It maintains two auxiliary indexes that are kept in sync with the grid
- * at all times to avoid scanning the entire grid on every query:
+ * <p>储存了两个与网格保持同步的辅助索引，
+ * 避免每次查询都要迭代整个网格</p>
  * <ul>
- *   <li>{@code emptyPositions} — the set of cells that currently hold no tile
- *       (patternId == 0), used for O(1) emptiness checks.</li>
- *   <li>{@code patternLocations} — a map from each active pattern ID to the
- *       set of board positions carrying that pattern, used for O(1) group
- *       lookups without iterating the full grid.</li>
+ *   <li>{@code emptyPositions} 记录空单元格，供 O(1) 检查</li>
+ *   <li>{@code patternLocations} 一个 ID 与图案的 {@code Map} 供 O(1) 单元格查找</li>
  * </ul>
  *
- * <p>All mutating operations ({@link #setPattern}, {@link #clear}) update both
- * the raw tile array and the two indexes atomically.
+ * <p>所有操作如 ({@link #setPattern}, {@link #clear}) 会自动更新索引
  */
 public class GameBoard implements Serializable {
 
-    /** Number of rows on the board (fixed at construction). */
     private final int rows;
 
-    /** Number of columns on the board (fixed at construction). */
     private final int cols;
 
-    /** 当前棋盘主题。 */
     private final Constants.Theme theme;
 
     /**
-     * The raw tile grid. {@code tiles[r][c]} holds the {@link Tile} at row
-     * {@code r}, column {@code c}. A tile with patternId 0 is considered empty.
+     * {@code tiles[r][c]} 保存了 {@link Tile} 及其 行数
+     * {@code r}, 列数 {@code c}. ID 为 0 的单元格表示空单元格。
+     * 
+     * <p>虽然{@link tile} 有 {@code position} 属性，但
+     * 这里另外使用二维数组记录位置实现简化查询，避免需要重新创建对象</p>
      */
     private final Tile[][] tiles;
 
     /**
-     * Index of all positions that are currently empty (patternId == 0).
-     * Maintained in sync with {@code tiles} to allow O(1) {@link #isEmpty}
-     * checks and O(n_empty) size queries.
+     * 所有空位置的索引
+     * 与 {@code tiles} 同步以实现 O(1) {@link #isEmpty}
+     * 的检查和 O(n_empty) 大小查询.
      */
     private final Set<Position> emptyPositions = new HashSet<>();
 
     /**
-     * Index mapping each active pattern ID to the set of positions on the
-     * board that carry that pattern. Entries are added/removed whenever
-     * {@link #setPattern} is called.
+     * ID 与位置的索引，供 O(1) 查询所有具有特定图案的单元格。
      *
-     * <p>Invariant: a pattern ID key is present if and only if at least one
-     * position on the board has that pattern. Empty sets are removed eagerly.
+     * <p>移除单元格时会自动清理空集</p>
      */
     private final Map<Integer, Set<Position>> patternLocations = new HashMap<>();
 
     /**
-     * Constructs a board of the given dimensions with all cells empty.
-     *
-     * @param rows number of rows (must be > 0)
-     * @param cols number of columns (must be > 0)
+     * 构建棋盘
      */
     public GameBoard(int rows, int cols) {
         this(rows, cols, Constants.Theme.THEME1);

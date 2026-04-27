@@ -141,8 +141,7 @@ public class GameSession {
         int added = comboManager.onEliminate();
         score += added;
         if (theme == Constants.Theme.THEME2) {
-            operationLog.update("Matched [" + labelForPattern(pattern) + " - "
-                    + labelForPattern(pattern2) + "], +" + added + " points");
+            operationLog.update("Matched x2, +" + added + " points");
         } else {
             operationLog.update("Eliminated [" + pattern + "] x2, +" + added + " points");
         }
@@ -400,7 +399,7 @@ public class GameSession {
 
     /**
      * Returns the most recent operation message, used to populate the HUD
-     * status line (e.g. "Eliminated [3] x2, +15 points" or "Unconnectable").
+    * status line (e.g. "Matched x2, +15 points" or "Unconnectable").
      *
      * @return a non-null operation description string
      */

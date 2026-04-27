@@ -259,7 +259,7 @@ public final class StyledDialogs {
     private static JRadioButton createRadio(String text, boolean selected) {
         JRadioButton radio = new JRadioButton(text, selected);
         radio.setOpaque(false);
-        AuthUiKit.applyLocalizedButtonFont(radio, false, Font.PLAIN, 15);
+        AuthUiKit.applyLocalizedButtonFont(radio, true, Font.BOLD, 15);
         return radio;
     }
 
