@@ -56,6 +56,8 @@ public class GameBoard implements Serializable {
 
     /**
      * 构建棋盘
+     * 
+     * <p>默认为 Theme1，但一般不使用
      */
     public GameBoard(int rows, int cols) {
         this(rows, cols, Constants.Theme.THEME1);
@@ -74,20 +76,10 @@ public class GameBoard implements Serializable {
         }
     }
 
-    /**
-     * Returns the number of rows on this board.
-     *
-     * @return row count (≥ 1)
-     */
     public int rows() {
         return rows;
     }
 
-    /**
-     * Returns the number of columns on this board.
-     *
-     * @return column count (≥ 1)
-     */
     public int cols() {
         return cols;
     }
@@ -97,10 +89,7 @@ public class GameBoard implements Serializable {
     }
 
     /**
-     * Returns {@code true} if the given position is within the board's bounds.
-     *
-     * @param p the position to check; a {@code null} argument returns false
-     * @return {@code true} if {@code p} is non-null and within [0, rows) × [0, cols)
+     * 若需要判断的点在边界内且非null返回 {@code true}
      */
     public boolean isValid(Position p) {
         return p != null
@@ -108,48 +97,36 @@ public class GameBoard implements Serializable {
                 && p.col() >= 0 && p.col() < cols;
     }
 
-    /**
-     * Returns the {@link Tile} object at the given position.
-     * The position must be valid (see {@link #isValid}).
-     *
-     * @param p a valid board position
-     * @return the tile at {@code p} (never {@code null})
-     */
     public Tile tileAt(Position p) {
         return tiles[p.row()][p.col()];
     }
 
     /**
-     * Sets the pattern at position {@code p} to {@code patternId} and updates
-     * both auxiliary indexes ({@code emptyPositions} and {@code patternLocations})
-     * atomically.
+     * 设在位置 {@code p} 的图案为 {@code patternId} 并更新
+     *  ({@code emptyPositions} 和 {@code patternLocations})
      *
-     * <p>Setting {@code patternId} to 0 is equivalent to calling {@link #clear}.
-     * If the position already carries the given pattern, the call is a no-op.
+     * <p>将 {@code patternId} 设为 0 等价于使用 {@link #clear}.
+     * 若前后图案相同，该函数直接返回
      *
-     * @param p         the target board position (must be valid)
-     * @param patternId the new pattern identifier; 0 means empty
+     * @param p         目标位置，须为 valid
+     * @param patternId 新的图案id
      */
     public void setPattern(Position p, int patternId) {
         Tile tile = tileAt(p);
         int old = tile.patternId();
 
-        // Skip if the pattern is unchanged — no index work needed.
         if (old == patternId) {
             return;
         }
 
-        // Remove the position from whichever index it currently belongs to.
         if (old == 0) {
             emptyPositions.remove(p);
         } else {
             removePatternLocation(old, p);
         }
 
-        // Apply the new pattern to the tile.
         tile.setPatternId(patternId);
 
-        // Register the position with its new index bucket.
         if (patternId == 0) {
             emptyPositions.add(p);
         } else {
@@ -157,34 +134,27 @@ public class GameBoard implements Serializable {
         }
     }
 
-    /**
-     * Clears the tile at position {@code p} (sets its pattern to 0).
-     * Equivalent to {@code setPattern(p, 0)}.
-     *
-     * @param p the position to clear (must be valid)
-     */
     public void clear(Position p) {
         setPattern(p, 0);
     }
 
     /**
-     * Returns {@code true} if the cell at {@code p} is empty (patternId == 0).
-     * Uses the {@code emptyPositions} index for an O(1) lookup.
-     *
-     * @param p the board position to check (must be valid)
-     * @return {@code true} if the position is empty
+     * 使用 {@code emptyPositions} 作 O(1) 查询
      */
     public boolean isEmpty(Position p) {
         return emptyPositions.contains(p);
     }
 
+
+    /**
+     * 在不同主题中判断二者是否是一对
+     */
     public boolean canMatchPatterns(int patternA, int patternB) {
-        if (patternA <= 0 || patternB <= 0) {
-            return false;
-        }
         if (theme == Constants.Theme.THEME1) {
             return patternA == patternB;
         }
+
+        // 其余主题下 A 为奇数，B 为偶数，这里利用 JAVA 自动向下取整
         int pairA = (patternA + 1) / 2;
         int pairB = (patternB + 1) / 2;
         boolean sideDifferent = (patternA % 2) != (patternB % 2);
@@ -192,41 +162,25 @@ public class GameBoard implements Serializable {
     }
 
     /**
-     * Returns a snapshot copy of the positions currently holding the given
-     * pattern. The returned set is a defensive copy — mutations do not affect
-     * the internal index.
+     * 返回当前图案位置的副本
      *
-     * @param patternId the pattern to look up (must be > 0)
-     * @return an independent {@link Set} of positions carrying {@code patternId};
-     *         may be empty if no tile with that pattern exists
+     * @param patternId 查询的 ID
+     * @return 一个不影响原有位置的包含 {@code patternId} 的 {@link Set} ;
+     *         若不存在则为空
      */
     public Set<Position> getPatternPositions(int patternId) {
         return new HashSet<>(patternLocations.getOrDefault(patternId, Set.of()));
     }
 
     /**
-     * Returns a live view of the internal pattern-to-positions index as an
-     * entry set. Callers that only need to iterate over pattern groups (e.g.
-     * {@link logic.DeadEndDetector}) should prefer this over
-     * {@link #nonEmptyPositions()} to avoid re-grouping by pattern.
-     *
-     * <p><b>Warning:</b> the returned entry set is backed by the internal map.
-     * Do not mutate it or the associated sets; take a snapshot if mutation
-     * is needed.
-     *
-     * @return an unmodifiable view of the {@code patternId → positions} entries
+     * 返回一个不可更改的 {@code patternId → positions} 映射
      */
     public Set<Map.Entry<Integer, Set<Position>>> patternEntries() {
         return Collections.unmodifiableMap(patternLocations).entrySet();
     }
 
     /**
-     * Returns a list of all positions that currently hold a tile (patternId ≠ 0).
-     *
-     * <p>Implemented by flattening the values of the {@code patternLocations}
-     * index, so it runs in O(n_tiles) rather than O(rows × cols).
-     *
-     * @return a new {@link List} of non-empty positions in unspecified order
+     * 返回非空位置列表
      */
     public List<Position> nonEmptyPositions() {
         // Aggregate all positions from the patternLocations index.
@@ -239,20 +193,15 @@ public class GameBoard implements Serializable {
     }
 
     /**
-     * Returns the number of non-empty tiles remaining on the board.
-     *
-     * @return count of tiles with patternId ≠ 0 (in range [0, rows × cols])
+     * 返回非空数
      */
     public int remainingTiles() {
         return rows * cols - emptyPositions.size();
     }
 
     /**
-     * Creates a complete deep copy of this board, including all tile patterns
-     * and both auxiliary indexes. Used by {@link logic.BoardGenerator} to
-     * simulate board clearability without modifying the original.
-     *
-     * @return a new {@link GameBoard} with identical state
+     * 返回棋盘深拷贝
+     * <p>被 {@link logic.BoardGenerator} 用来检验是否可消
      */
     public GameBoard deepCopy() {
         GameBoard copy = new GameBoard(rows, cols, theme);
@@ -266,11 +215,7 @@ public class GameBoard implements Serializable {
     }
 
     /**
-     * Exports the current board state as a 2D array of pattern IDs, suitable
-     * for serialisation into a {@link model.GameSnapshot}.
-     * A value of 0 indicates an empty cell.
-     *
-     * @return a new {@code int[rows][cols]} grid of pattern IDs
+     * 以数组形式返回棋盘
      */
     public int[][] exportPatternGrid() {
         int[][] grid = new int[rows][cols];
@@ -283,11 +228,7 @@ public class GameBoard implements Serializable {
     }
 
     /**
-     * Restores the board state from a 2D pattern-ID array produced by
-     * {@link #exportPatternGrid()}. The supplied grid dimensions must match
-     * {@code rows × cols}.
-     *
-     * @param grid a {@code int[rows][cols]} array of pattern IDs to import
+     * 根据 {@link #exportPatternGrid()} 导出的数组重置棋盘状态。
      */
     public void importPatternGrid(int[][] grid) {
         for (int r = 0; r < rows; r++) {
@@ -298,25 +239,20 @@ public class GameBoard implements Serializable {
     }
 
     // -------------------------------------------------------------------------
-    // Private helpers
+    // 私有函数
     // -------------------------------------------------------------------------
 
     /**
-     * Removes position {@code p} from the set associated with {@code patternId}
-     * in the {@code patternLocations} index. If the resulting set is empty, the
-     * map entry is removed to keep the invariant that every key has ≥ 1 position.
-     *
-     * @param patternId the pattern whose index entry should be updated
-     * @param p         the position to remove from that entry
+     *在{@code patternLocations} 取出有 {@code patternId} 的位置 {@code p}
+     * 若取出后为空，则删除
      */
     private void removePatternLocation(int patternId, Position p) {
         Set<Position> positions = patternLocations.get(patternId);
         if (positions == null) {
-            return; // defensive: should not happen under normal usage
+            return;
         }
         positions.remove(p);
         if (positions.isEmpty()) {
-            // Eagerly remove the empty set to maintain the non-empty invariant.
             patternLocations.remove(patternId);
         }
     }

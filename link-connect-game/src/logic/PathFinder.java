@@ -27,20 +27,12 @@ public class PathFinder {
     private static final int[] DC = {0, 0, -1, 1};
 
     /**
-     * 判断两格是否可连接（存在满足条件的路径），不构建路径细节。
+     * 判断两格是否可连接,构建路径细节,
      * 返回 {@code null} 若不存在路径。
      *
-     * <p>条件判断:
-     * <ul>
-     *   <li>不为同一点</li>
-     *   <li>在棋盘内</li>
-     *   <li>非空</li>
-     *   <li>相同图案</li>
-     * </ul>
-     *
-     * @param board 当前棋盘
-     * @param start 第一格位置 (0-indexed行列)
-     * @param end   第二格位置 (0-indexed行列)
+     * @param board
+     * @param start
+     * @param end
      * @return 路径节点 {@link Path} 或 {@code null}
      */
     public Path findPath(GameBoard board, Position start, Position end) {
@@ -52,7 +44,7 @@ public class PathFinder {
     }
 
     /**
-     * 检查两格是否可连接（存在满足条件的路径），不构建路径细节。
+     * 检查两格是否可连接，不构建路径细节。
      *
      * <p>实现思路：基于最多两转的规则，使用几何寻找连接路径：
      * <ol>
@@ -109,15 +101,42 @@ public class PathFinder {
             return buildCompactWaypoints(start, new Position(c2r, c2c), end);
         }
 
-        // 考虑四个方向的射线，寻找潜在的转折点 p。
-        // 对于每个 p，尝试两个转折组合，并利用剪枝优化同一分支的后续 p。
+        /**
+         * 沿四个方向扫描潜在转折点 p。
+         * 首先考虑较远的方向
+         * 对每条射线在{start, end}选择 origin，使 p 朝远离 target 的方向移动，
+         * 从而 corner -> target 的直线段只会变长，一旦有阻挡就可以永久剪枝。
+         */
+        
         for (int d = 0; d < 4; d++) {
-            int r = start.row();
-            int c = start.col();
-            boolean horizontalRay = DR[d] == 0;
-            boolean verticalRay = DC[d] == 0;
-            boolean pruneCorner1Branch = false;
-            boolean pruneCorner2Branch = false;
+            boolean verticalRay = DR[d] != 0;
+            boolean horizontalRay = DC[d] != 0;
+
+            Position origin, target;
+            if (verticalRay) {
+                boolean awayFromEnd = (DR[d] < 0 && start.row() < end.row())
+                                   || (DR[d] > 0 && start.row() > end.row());
+                origin = awayFromEnd ? start : end;
+                target = awayFromEnd ? end : start;
+            } else {
+                boolean awayFromEnd = (DC[d] < 0 && start.col() < end.col())
+                                   || (DC[d] > 0 && start.col() > end.col());
+                origin = awayFromEnd ? start : end;
+                target = awayFromEnd ? end : start;
+            }
+
+            // corner1 = (p.row, target.col): 在水平射线上不变
+            // corner2 = (target.row, p.col): 在竖直射线上不变
+            // 固定角落的 isPassableRC 结果可永久剪枝；corner -> target 直线始终可以剪枝（p 远离 target）
+            boolean corner1PassableBlocked = false;
+            boolean corner2PassableBlocked = false;
+            boolean corner1ClearBlocked = false;
+            boolean corner2ClearBlocked = false;
+
+            int r = origin.row();
+            int c = origin.col();
+
+            int times = 0;
 
             while (true) {
                 r += DR[d];
@@ -127,85 +146,146 @@ public class PathFinder {
                     break;
                 }
 
-                if (!isPassableRC(board, r, c, start, end)) {
+                if (!isPassableRC(board, r, c, origin, target)) {
                     break;
                 }
 
-                // 1 折点路径: start -> p -> end. 已经在外层循环里直接判断了。
+                times++;
 
-                // 2 折点路径: start -> p -> (p.row, end.col) -> end.
-                // 对于上下射线的情况重复，但为了代码对称性和清晰度保留。
+                // 2 折路径: origin -> p -> (p.row, target.col) -> target 对于竖直射线
                 int corner1r = r;
-                int corner1c = end.col();
-                if (!pruneCorner1Branch) {
-                    if (!isPassableRC(board, corner1r, corner1c, start, end)) {
-                        // For left/right rays, corner1 is fixed and will stay blocked.
-                        if (horizontalRay) {
-                            pruneCorner1Branch = true;
-                        }
-                    } else {
-                        boolean corner1ToEndClear = isStraightClear(
-                                board,
-                                corner1r,
-                                corner1c,
-                                end.row(),
-                                end.col(),
-                                start,
-                                end
-                        );
-                        if (!corner1ToEndClear) {
-                            // For left/right rays, this end-leg is fixed across the ray.
-                            if (horizontalRay) {
-                                pruneCorner1Branch = true;
-                            }
-                        } else if (isStraightClear(board, r, c, corner1r, corner1c, start, end)) {
-                            return buildCompactWaypoints(
-                                    start,
-                                    new Position(r, c),
-                                    new Position(corner1r, corner1c),
-                                    end
-                            );
+                int corner1c = target.col();
+                if (verticalRay && !corner1ClearBlocked && !corner1PassableBlocked) {
+                    if (!isPassableRC(board, corner1r, corner1c, origin, target)) {
+                        corner1PassableBlocked = true;
+                    } else { // 第2次循环开始无需重复判断先前位置是否为空
+                        if (times == 1 && !isStraightClear(board, corner1r, corner1c, target.row(), target.col(), origin, target)) {
+                            corner1ClearBlocked = true;
+                        } else if (isStraightClear(board, r, c, corner1r, corner1c, origin, target)) {
+                            return origin == start
+                                    ? buildCompactWaypoints(start,
+                                            new Position(r, c),
+                                            new Position(corner1r, corner1c),
+                                            end)
+                                    : buildCompactWaypoints(target,
+                                            new Position(corner1r, corner1c),
+                                            new Position(r, c),
+                                            origin);
                         }
                     }
                 }
 
-                // 2 折点路径: start -> p -> (end.row, p.col) -> end.
-                // 对于竖射线的情况重复，但为了代码对称性和清晰度保留。
-                int corner2r = end.row();
+                // 2 折路径: origin -> p -> (target.row, p.col) -> target 对于水平射线
+                int corner2r = target.row();
                 int corner2c = c;
-                if (!pruneCorner2Branch) {
-                    if (!isPassableRC(board, corner2r, corner2c, start, end)) {
-                        // For up/down rays, corner2 is fixed and will stay blocked.
-                        if (verticalRay) {
-                            pruneCorner2Branch = true;
-                        }
+                if (horizontalRay && !corner2ClearBlocked && !corner2PassableBlocked) {
+                    if (!isPassableRC(board, corner2r, corner2c, origin, target)) {
+                            corner2PassableBlocked = true;
                     } else {
-                        boolean corner2ToEndClear = isStraightClear(
-                                board,
-                                corner2r,
-                                corner2c,
-                                end.row(),
-                                end.col(),
-                                start,
-                                end
-                        );
-                        if (!corner2ToEndClear) {
-                            // For up/down rays, this end-leg is fixed across the ray.
-                            if (verticalRay) {
-                                pruneCorner2Branch = true;
-                            }
-                        } else if (isStraightClear(board, r, c, corner2r, corner2c, start, end)) {
-                            return buildCompactWaypoints(
-                                    start,
-                                    new Position(r, c),
-                                    new Position(corner2r, corner2c),
-                                    end
-                            );
+                        if (times == 1 && !isStraightClear(board, corner2r, corner2c, target.row(), target.col(), origin, target)) {
+                            corner2ClearBlocked = true;
+                        } else if (isStraightClear(board, r, c, corner2r, corner2c, origin, target)) {
+                            return origin == start
+                                    ? buildCompactWaypoints(start,
+                                            new Position(r, c),
+                                            new Position(corner2r, corner2c),
+                                            end)
+                                    : buildCompactWaypoints(target,
+                                            new Position(corner2r, corner2c),
+                                            new Position(r, c),
+                                            origin);
                         }
+                    }
+                }
+
+                boolean corner1Hopeless = corner1ClearBlocked || (verticalRay && corner1PassableBlocked);
+                boolean corner2Hopeless = corner2ClearBlocked || (horizontalRay && corner2PassableBlocked);
+                if (corner1Hopeless && corner2Hopeless) {
+                    break;
+                }
+            }
+        }
+
+        /**
+         * 其次考虑较近路线
+         * 在 start -> end 之间扫描 2 折路径（转角落在起终点矩形内）。
+         * 此时 p 位于 start 与 end 之间，利用 findBlocker 跳过阻挡格快速寻找。
+         */
+
+        // corner1: start -> p -> (p.row, end.col) -> end — 仅竖直射线（水平已在 1 折判断）
+        if (start.row() != end.row()) {
+            int dr = Integer.compare(end.row(), start.row());
+            int r = start.row() + dr;
+            int c = start.col();
+
+            Position blocker = findBlocker(board, end.row(), end.col(), r, end.col(), start, end);
+            int times = 0;
+
+            while ((dr > 0 && r < end.row()) || (dr < 0 && r > end.row())) {
+                times++;
+                if (!isPassableRC(board, r, c, start, end)) {
+                    break;
+                }
+                
+                if (times == 1 && blocker == null) {
+                    if (findBlocker(board, r, c, r, end.col(), start, end) == null && isPassableRC(board, r, end.col(), start, end)) {
+                        return buildCompactWaypoints(start, new Position(r, c), new Position(r, end.col()), end);
+                    }
+                } else {
+                    r = (times == 1) ? blocker.row() + dr : r + dr; // 第1次循环时跳过阻挡格，之后正常递增
+                    if (!isPassableRC(board, r, c, start, end)) {
+                    break;
+                    }
+                    if ((dr > 0 && r >= end.row()) || (dr < 0 && r <= end.row())) {
+                        break;
+                    }
+                    if (findBlocker(board, start.row(), start.col(), r, c, start, end) != null) {
+                        break;
+                    }
+                    if (findBlocker(board, r, c, r, end.col(), start, end) == null && isPassableRC(board, r, end.col(), start, end)) {
+                        return buildCompactWaypoints(start, new Position(r, c), new Position(r, end.col()), end);
                     }
                 }
             }
         }
+
+        // corner2: start -> p -> (end.row, p.col) -> end — 仅水平射线（竖直已在 1 折判断）
+        if (start.col() != end.col()) {
+            int dc = Integer.compare(end.col(), start.col());
+            int r = start.row();
+            int c = start.col() + dc;
+
+            Position blocker = findBlocker(board, end.row(), end.col(), end.row(), c, start, end);
+            int times = 0;
+
+            while ((dc > 0 && c < end.col()) || (dc < 0 && c > end.col())) {
+                times++;
+                if (!isPassableRC(board, r, c, start, end)) {
+                    break;
+                }
+                
+                if (times == 1 && blocker == null) {
+                    if (findBlocker(board, r, c, end.row(), c, start, end) == null && isPassableRC(board, end.row(), c, start, end)) {
+                        return buildCompactWaypoints(start, new Position(r, c), new Position(end.row(), c), end);
+                    }
+                } else {
+                    c = (times == 1) ? blocker.col() + dc : c + dc; // 第1次循环时跳过阻挡格，之后正常递增
+                    if (!isPassableRC(board, r, c, start, end)) {
+                    break;
+                    }
+                    if ((dc > 0 && c >= end.col()) || (dc < 0 && c <= end.col())) {
+                        break;
+                    }
+                    if (findBlocker(board, start.row(), start.col(), r, c, start, end) != null) {
+                        break;
+                    }
+                    if (findBlocker(board, r, c, end.row(), c, start, end) == null && isPassableRC(board, end.row(), c, start, end)) {
+                        return buildCompactWaypoints(start, new Position(r, c), new Position(end.row(), c), end);
+                    }
+                }
+            }
+        }
+
         return null;
     }
 
@@ -231,36 +311,10 @@ public class PathFinder {
     private List<Position> buildCompactWaypoints(Position... candidates) {
         List<Position> unique = new ArrayList<>();
         for (Position p : candidates) {
-            if (p == null) {
-                continue;
-            }
-            if (!unique.isEmpty() && unique.get(unique.size() - 1).equals(p)) {
-                continue;
-            }
             unique.add(p);
         }
 
-        if (unique.size() <= 2) {
-            return unique;
-        }
-
-        List<Position> compact = new ArrayList<>();
-        compact.add(unique.get(0));
-        for (int i = 1; i < unique.size() - 1; i++) {
-            Position prev = compact.get(compact.size() - 1);
-            Position curr = unique.get(i);
-            Position next = unique.get(i + 1);
-
-            int dr1 = Integer.compare(curr.row() - prev.row(), 0);
-            int dc1 = Integer.compare(curr.col() - prev.col(), 0);
-            int dr2 = Integer.compare(next.row() - curr.row(), 0);
-            int dc2 = Integer.compare(next.col() - curr.col(), 0);
-            if (dr1 != dr2 || dc1 != dc2) {
-                compact.add(curr);
-            }
-        }
-        compact.add(unique.get(unique.size() - 1));
-        return compact;
+        return unique;
     }
 
     /**
@@ -288,7 +342,7 @@ public class PathFinder {
     }
 
     /**
-     * 确认二者相通
+     * 确认二者直线相通。
      */
     private boolean isStraightClear(GameBoard board,
                                     int aRow,
@@ -297,12 +351,28 @@ public class PathFinder {
                                     int bCol,
                                     Position start,
                                     Position end) {
-        if (aRow == bRow && aCol == bCol) {
-            return true;
-        }
-        // reject diagonals before any scanning loop
         if (aRow != bRow && aCol != bCol) {
             return false;
+        }
+        return findBlocker(board, aRow, aCol, bRow, bCol, start, end) == null;
+    }
+
+    /**
+     * 检测水平/竖直线段上的第一个阻挡格。
+     *
+     * <p>调用方保证 (aRow,aCol)→(bRow,bCol) 同行或同列。
+     *
+     * @return 阻挡格坐标，全程通畅则返回 {@code null}
+     */
+    private Position findBlocker(GameBoard board,
+                                 int aRow,
+                                 int aCol,
+                                 int bRow,
+                                 int bCol,
+                                 Position start,
+                                 Position end) {
+        if (aRow == bRow && aCol == bCol) {
+            return null;
         }
 
         int rowStep = Integer.compare(bRow, aRow);
@@ -311,12 +381,12 @@ public class PathFinder {
         int c = aCol + colStep;
         while (r != bRow || c != bCol) {
             if (!isPassableRC(board, r, c, start, end)) {
-                return false;
+                return new Position(r, c);
             }
             r += rowStep;
             c += colStep;
         }
-        return true;
+        return null;
     }
 
 }

@@ -8,84 +8,50 @@ import logic.DeadEndDetector;
 import logic.PathFinder;
 
 /**
- * GameSession is the central game-state object for a single play session.
+ * GameSession 记录单句游戏的状态
  *
- * <p>It owns and coordinates:
+ * <p>包括：
  * <ul>
- *   <li>The {@link GameBoard} — the live tile grid.</li>
- *   <li>Score and time tracking.</li>
- *   <li>Combo management via {@link ComboManager}.</li>
- *   <li>Win/loss evaluation.</li>
- *   <li>An operation log for HUD feedback.</li>
+ *   <li> {@link GameBoard} 棋盘</li>
+ *   <li>分数及时间</li>
+ *   <li>Combo 管理 {@link ComboManager}.</li>
+ *   <li>输赢判断</li>
+ *   <li>操作记录供 HUD 显示</li>
  * </ul>
  *
- * <p><b>Dead-end detection caching:</b> checking whether any valid move exists
- * is an O(n²) operation (all same-pattern pairs × pathfinding). To avoid
- * running this check on every timer tick <em>and</em> every click, the result
- * is cached in {@code noValidMovesCache}:
- * <ul>
- *   <li>{@code null}  — not yet computed for the current board state.</li>
- *   <li>{@code false} — at least one valid move was found (cache valid).</li>
- *   <li>{@code true}  — no valid moves remain (cache valid, board is stuck).</li>
- * </ul>
- * The cache is invalidated (set to {@code null}) after any successful
- * elimination or board reshuffle, since both operations change the board state.
+ * <p><b>死局检测：</b> 只在成功消除和刷新后更改。 {@link #hasLost()} 在其他地方多次调用但很简单
  */
 public class GameSession {
 
-    /** The difficulty chosen for this session (affects board size and time limit). */
     private final Constants.Difficulty difficulty;
 
-    /** 当前会话主题。 */
     private final Constants.Theme theme;
 
-    /** The live tile grid for this session. */
     private final GameBoard board;
 
-    /** Shared path finder; stateless, safe to reuse across sessions. */
     private final PathFinder pathFinder;
 
-    /** Dead-end detector used for hint generation and lose-condition checking. */
     private final DeadEndDetector deadEndDetector;
 
-    /** Tracks consecutive successful eliminations and calculates score bonuses. */
     private final ComboManager comboManager;
 
-    /** Records the most recent operation message for HUD display. */
     private final OperationLog operationLog;
 
-    /** Accumulated score for this session. Updated by every successful elimination. */
     private int score;
 
-    /**
-     * Seconds remaining in the session countdown. Decremented each tick by
-     * {@link #tickSecond()}. The game is lost when this reaches 0.
-     */
     private int timeLeft;
 
-    /**
-     * The path drawn for the most recently completed elimination, used by the
-     * UI to animate the connection line. Cleared shortly after by the controller.
-     */
     private Path lastPath;
 
-    /**
-     * Cached dead-end detection result for the current board state.
-     * {@code null} means the cache is invalid and must be recomputed.
-     * {@code true} means no valid moves exist; {@code false} means at least one does.
-     *
-     * <p>Invalidate by setting to {@code null} after any board mutation
-     * (elimination or reshuffle).
-     */
-    private Boolean noValidMovesCache;
+    private boolean noValidMoves;
 
     /**
-     * Constructs a new game session with all state initialised to defaults.
+     * 构建新的 GameSession
      *
-     * @param difficulty      the chosen difficulty (determines board size and time limit)
-     * @param board           the pre-generated, pre-filled game board
-     * @param pathFinder      the path finder to use for elimination checks
-     * @param deadEndDetector the dead-end detector for hint and lose-condition logic
+     * @param difficulty
+     * @param board
+     * @param pathFinder
+     * @param deadEndDetector
      */
     public GameSession(Constants.Difficulty difficulty,
                        Constants.Theme theme,
@@ -100,133 +66,78 @@ public class GameSession {
         this.comboManager = new ComboManager();
         this.operationLog = new OperationLog();
         this.timeLeft = difficulty.timeLimitSeconds();
-        this.noValidMovesCache = null; // unknown until first check
+        refreshNoValidMovesState();
     }
 
     /**
-     * Attempts to eliminate the two tiles at {@code p1} and {@code p2}.
+     * 尝试消除 {@code p1} 和 {@code p2}.
      *
-     * <p>Elimination succeeds only if:
-     * <ol>
-     *   <li>The path finder finds a valid connecting path (≤ 2 turns).</li>
-     *   <li>Both tiles carry the same non-zero pattern (enforced inside {@link PathFinder}).</li>
-     * </ol>
+     * <p>条件已由 {@link PathFinder} 保证
      *
-     * <p>On success: both tiles are cleared, the last path is stored for UI
-     * animation, the combo counter is incremented, score is awarded, and the
-     * dead-end cache is invalidated.
+     * <p>成功后刷新状态：消除，保留消除线，combo 计算，分数
      *
-     * <p>On failure: the combo counter is reset to zero and the cache is left
-     * unchanged (a failed attempt does not alter the board).
+     * <p>失败重置 combo
      *
-     * @param p1 the first selected tile position
-     * @param p2 the second selected tile position
-     * @return {@code true} if the tiles were successfully connected and removed
+     * @param p1
+     * @param p2
+     * @return {@code true} 若成功消除
      */
     public boolean eliminate(Position p1, Position p2) {
         Path path = pathFinder.findPath(board, p1, p2);
         if (path == null) {
-            // Failed attempt — break the combo streak, but board is unchanged.
             comboManager.reset();
             operationLog.update("Unconnectable");
             return false;
         }
 
-        int pattern = board.tileAt(p1).patternId();
-        int pattern2 = board.tileAt(p2).patternId();
         board.clear(p1);
         board.clear(p2);
         lastPath = path;
 
         int added = comboManager.onEliminate();
         score += added;
-        if (theme == Constants.Theme.THEME2) {
-            operationLog.update("Matched x2, +" + added + " points");
-        } else {
-            operationLog.update("Eliminated [" + pattern + "] x2, +" + added + " points");
-        }
+        operationLog.update("Matched x2, +" + added + " points");
 
-        // Board state changed — cached dead-end result is no longer valid.
-        noValidMovesCache = null;
+        refreshNoValidMovesState();
         return true;
     }
 
-    /**
-     * Advances the countdown timer by one second. Should be called once per
-     * second by the game controller's timer.
-     * Has no effect once the timer has already reached zero.
-     */
     public void tickSecond() {
         if (timeLeft > 0) {
             timeLeft--;
         }
     }
 
-    /**
-     * Returns {@code true} if the board has been completely cleared (all tiles
-     * eliminated). This is the win condition.
-     *
-     * @return {@code true} if no tiles remain on the board
-     */
     public boolean hasWon() {
         return board.remainingTiles() == 0;
     }
 
-    /**
-     * Returns {@code true} if the session is in a losing state — either the
-     * timer has expired, or no valid moves remain on the board.
-     *
-     * <p>A won session is never also considered lost. Dead-end detection is
-     * cached: the expensive O(n²) check runs only when the cache is invalid
-     * (i.e. after an elimination, reshuffle, or session start).
-     *
-     * @return {@code true} if the player has lost
-     */
     public boolean hasLost() {
         if (hasWon()) {
-            return false; // winning takes priority
+            return false;
         }
         if (timeLeft <= 0) {
-            return true; // timed out
+            return true;
         }
-
-        /*
-         * Check for dead-end (no available valid move). The result is cached
-         * because this method is called on every timer tick AND every click.
-         * We only recompute after the board state actually changes.
-         */
-        if (noValidMovesCache == null) {
-            noValidMovesCache = !deadEndDetector.hasAnyValidMove(board);
-        }
-        return noValidMovesCache;
+        return noValidMoves;
     }
 
-    /**
-     * Finds and returns a connectable tile pair for the hint system.
-     * Returns {@code null} if the board is in a dead-end state.
-     *
-     * @return a two-element {@code Position[]} hint pair, or {@code null}
-     */
     public Position[] hintPair() {
         return deadEndDetector.findAnyPair(board);
     }
 
     /**
-     * Invalidates the dead-end detection cache. Must be called whenever the
-     * board is externally mutated in a way that is not tracked by
-     * {@link #eliminate} — specifically after a board reshuffle performed by
-     * {@link logic.BoardGenerator#reshuffle}.
+     * 在 {@link logic.BoardGenerator#reshuffle} 之后调用以刷新死局状态。
      */
-    public void invalidateMoveCache() {
-        noValidMovesCache = null;
+    public void refreshNoValidMovesState() {
+        noValidMoves = !deadEndDetector.hasAnyValidMove(board);
     }
 
     /**
-     * Serialises the current session state into a {@link GameSnapshot} for
-     * save-file persistence.
+     * 序列化当前 session 状态到 {@link GameSnapshot} 用于存档
      *
-     * @param username the username to embed in the snapshot
-     * @return a snapshot capturing score, time, combo, board, and difficulty
+     * @param username
+     * @return 一个状态快照
      */
     public GameSnapshot toSnapshot(String username) {
         String snapshotStatus = buildSnapshotStatus();
@@ -256,16 +167,12 @@ public class GameSession {
     }
 
     /**
-     * Restores a {@link GameSession} from a previously saved {@link GameSnapshot}.
+     * 在 {@link GameSnapshot} 恢复 {@link GameSession}
      *
-     * <p>The combo count is restored via {@link ComboManager#setComboCount}
-     * instead of repeated calls to {@link ComboManager#onEliminate}, which
-     * would incorrectly inflate the score.
-     *
-     * @param snapshot        the snapshot to restore from
-     * @param pathFinder      the path finder to wire into the restored session
-     * @param deadEndDetector the dead-end detector to wire into the restored session
-     * @return a fully restored {@link GameSession} with state matching the snapshot
+     * @param snapshot
+     * @param pathFinder
+     * @param deadEndDetector
+     * @return {@link GameSession}
      */
     public static GameSession fromSnapshot(GameSnapshot snapshot,
                                            PathFinder pathFinder,
@@ -285,50 +192,29 @@ public class GameSession {
                 deadEndDetector
         );
 
-        // Restore scalar state directly — these fields are set from the snapshot
-        // without triggering any side-effects (scoring, etc.).
         session.score = snapshot.score();
         session.timeLeft = snapshot.timeLeft();
 
-        // Use setComboCount() to restore the combo streak without awarding score.
-        // (Previously, calling onEliminate() N times would incorrectly add score
-        //  N times even though the score is already captured in snapshot.score().)
         session.comboManager.setComboCount(snapshot.comboCount());
 
         session.operationLog.update(snapshot.operationMessage());
 
-        // Cache is unknown until the first hasLost() call after restore.
-        session.noValidMovesCache = null;
+        session.refreshNoValidMovesState();
         return session;
     }
 
     // -------------------------------------------------------------------------
-    // Accessors
+    // gettet setter 和其他查询函数
     // -------------------------------------------------------------------------
 
-    /**
-     * Returns the path drawn for the most recently completed elimination, or
-     * {@code null} if no elimination has occurred yet or the path was cleared.
-     *
-     * @return the last connecting path, or {@code null}
-     */
     public Path lastPath() {
         return lastPath;
     }
 
-    /**
-     * Clears the stored last-path so the UI stops drawing the connection line.
-     * Typically called by the controller a short time after each elimination.
-     */
     public void clearLastPath() {
         lastPath = null;
     }
 
-    /**
-     * Returns the current accumulated score for this session.
-     *
-     * @return score (≥ 0)
-     */
     public int score() {
         return score;
     }
@@ -378,51 +264,22 @@ public class GameSession {
         return second == null ? String.valueOf(patternId) : second;
     }
 
-    /**
-     * Returns the number of seconds remaining in the timer countdown.
-     *
-     * @return seconds left (≥ 0)
-     */
     public int timeLeft() {
         return timeLeft;
     }
 
-    /**
-     * Returns the current length of the combo streak (consecutive successful
-     * eliminations since the last failure or session start).
-     *
-     * @return combo count (≥ 0)
-     */
     public int comboCount() {
         return comboManager.comboCount();
     }
 
-    /**
-     * Returns the most recent operation message, used to populate the HUD
-    * status line (e.g. "Matched x2, +15 points" or "Unconnectable").
-     *
-     * @return a non-null operation description string
-     */
     public String lastOperation() {
         return operationLog.lastMessage();
     }
 
-    /**
-     * Returns the difficulty level associated with this session.
-     *
-     * @return the {@link Constants.Difficulty} enum value
-     */
     public Constants.Difficulty difficulty() {
         return difficulty;
     }
 
-    /**
-     * Returns the live {@link GameBoard} underlying this session.
-     * Callers should treat this as read-only unless they subsequently call
-     * {@link #invalidateMoveCache()} to keep the session state consistent.
-     *
-     * @return the current game board
-     */
     public GameBoard board() {
         return board;
     }

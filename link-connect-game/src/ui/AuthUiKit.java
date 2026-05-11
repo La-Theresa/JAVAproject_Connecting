@@ -38,8 +38,8 @@ public final class AuthUiKit {
     public static final Color BUTTON_BG = new Color(240, 238, 230);
     public static final Color BUTTON_TEXT = new Color(0, 0, 0);
 
-        public static final String ENGLISH_SERIF_FONT_FAMILY = resolveFontFamily("EB Garamond", "Garamond", "Serif");
-        public static final String ENGLISH_SANS_FONT_FAMILY = resolveFontFamily("Arial", "SansSerif");
+        public static final String ENGLISH_SERIF_FONT_FAMILY = resolveFontFamily("EB Garamond", "Garamond", "Serif", "Noto Serif CJK SC SemiBold");
+        public static final String ENGLISH_SANS_FONT_FAMILY = resolveFontFamily("Arial", "SansSerif", "Noto Sans CJK SC");
         public static final String CHINESE_SERIF_FONT_FAMILY = resolveFontFamily(
             "Source Han Serif SC SemiBold",
             "Source Han Serif CN SemiBold",
@@ -68,9 +68,11 @@ public final class AuthUiKit {
     public static final Font BUTTON_FONT = new Font(BODY_FONT_FAMILY, Font.BOLD, 20);
     public static final Font BODY_FONT = new Font(BODY_FONT_FAMILY, Font.BOLD, 14);
 
-    private AuthUiKit() {
-    }
-
+    /**
+     * 界面背景
+     * 
+     * <p>渐变和两个半透明椭圆</p>
+     */
     public static JPanel createRoot() {
         return new JPanel(new GridBagLayout()) {
             @Override
@@ -88,6 +90,9 @@ public final class AuthUiKit {
         };
     }
 
+    /**
+     * 登录/注册卡片背景
+     */
     public static JPanel createCard(int width, int height) {
         JPanel panel = new JPanel() {
             @Override
@@ -112,6 +117,10 @@ public final class AuthUiKit {
         return panel;
     }
 
+    /**
+     * 顶部标题横幅
+
+     */
     public static JPanel createBanner(String title, String subtitle) {
         JPanel banner = new JPanel(new java.awt.BorderLayout()) {
             @Override
@@ -127,6 +136,7 @@ public final class AuthUiKit {
         banner.setOpaque(false);
         banner.setBorder(new EmptyBorder(18, 24, 18, 24));
 
+           
         JLabel titleLabel = new JLabel(title, SwingConstants.CENTER);
         titleLabel.setForeground(Color.WHITE);
         titleLabel.setFont(TITLE_FONT);
@@ -193,7 +203,7 @@ public final class AuthUiKit {
     }
 
     private static void applyInputStyle(JComponent field) {
-        field.setFont(new Font(BODY_FONT_FAMILY, Font.BOLD, 16));
+        field.setFont(new Font(CHINESE_SANS_FONT_FAMILY, Font.BOLD, 16));
         field.setBorder(new CompoundBorder(
                 BorderFactory.createLineBorder(new Color(158, 158, 158), 1, true),
                 new EmptyBorder(12, 14, 12, 14)
@@ -227,6 +237,10 @@ public final class AuthUiKit {
         }
         return false;
     }
+
+    /**
+     * 圆角矩形按钮，支持悬浮效果和自定义内边距
+     */
 
     private static final class RoundedRectTextButton extends JButton {
         private final int arc;

@@ -167,14 +167,18 @@ public class MainMenuPanel extends JPanel {
             authButton.setText(controller.getCurrentUserInitial());
             authButton.setToolTipText("Signed in as " + controller.getCurrentUserName());
             authButton.setAvatarMode(true);
+            AuthUiKit.applyLocalizedButtonFont(authButton, true, Font.BOLD, 16);
             authButton.setPreferredSize(new Dimension(56, 36));
             greetingLabel.setText("Welcome back, " + controller.getCurrentUserName() + ".");
+            AuthUiKit.applyLocalizedLabelFont(greetingLabel, false, Font.PLAIN, 16);
         } else {
             authButton.setText("Log in");
             authButton.setToolTipText("Log in to save your progress");
             authButton.setAvatarMode(false);
+            AuthUiKit.applyLocalizedButtonFont(authButton, true, Font.BOLD, 16);
             authButton.setPreferredSize(new Dimension(100, 34));
             greetingLabel.setText("Jump straight into a clean, modern match.");
+            AuthUiKit.applyLocalizedLabelFont(greetingLabel, false, Font.PLAIN, 16);
         }
         revalidate();
         repaint();

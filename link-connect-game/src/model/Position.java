@@ -4,46 +4,29 @@ import java.io.Serializable;
 import java.util.Objects;
 
 /**
- * 棋盘位置值对象。
+ * 棋盘位置。
  */
 public final class Position implements Serializable {
     private final int row;
     private final int col;
 
-    /**
-     * 构造棋盘位置。
-     * @param row 行坐标
-     * @param col 列坐标
-     */
     public Position(int row, int col) {
         this.row = row;
         this.col = col;
     }
 
-    /**
-     * 返回行坐标。
-     */
     public int row() {
         return row;
     }
 
-    /**
-     * 返回列坐标。
-     */
     public int col() {
         return col;
     }
 
-    /**
-     * 判断是否同行。
-     */
     public boolean isSameRow(Position other) {
         return this.row == other.row;
     }
 
-    /**
-     * 判断是否同列。
-     */
     public boolean isSameCol(Position other) {
         return this.col == other.col;
     }

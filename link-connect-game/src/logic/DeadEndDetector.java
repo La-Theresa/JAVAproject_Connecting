@@ -8,6 +8,7 @@ import model.GameBoard;
 import model.Position;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -67,9 +68,7 @@ public class DeadEndDetector {
                 continue;
             }
 
-            /*
-             * 判断两个块 (i, j) 中 i < j
-             */
+            // 判断两个块 (i, j) 中 i < j
             for (int i = 0; i < size - 1; i++) {
                 for (int j = i + 1; j < size; j++) {
                     if (pathFinder.canConnect(board, group.get(i), group.get(j))) {
@@ -88,21 +87,16 @@ public class DeadEndDetector {
      * @return 可连接的两个 Position，或 null 若无
      */
     private Position[] findTheme2Pair(GameBoard board) {
+        Set<Integer> seen = new HashSet<>();
         for (Map.Entry<Integer, Set<Position>> entry : board.patternEntries()) {
-            int pattern = entry.getKey();
-            if (pattern <= 0) {
+            int pairId = Theme2VocabularyData.pairId(entry.getKey());
+            if (!seen.add(pairId)) {
                 continue;
             }
-
-            int pairId = Theme2VocabularyData.pairId(pattern);
-            if (pairId <= 0) {
-                continue;
-            }
-
-            int firstPattern = Theme2VocabularyData.englishPatternId(pairId);
-            int secondPattern = Theme2VocabularyData.chinesePatternId(pairId);
-
-            Position[] pair = findConnectableAcrossTwoPatterns(board, firstPattern, secondPattern);
+            Position[] pair = findConnectableAcrossTwoPatterns(
+                    board,
+                    Theme2VocabularyData.englishPatternId(pairId),
+                    Theme2VocabularyData.chinesePatternId(pairId));
             if (pair != null) {
                 return pair;
             }
@@ -110,28 +104,17 @@ public class DeadEndDetector {
         return null;
     }
 
-    /**
-     * 查找 Theme3 中的可连接配对
-     * 跨图案配对，调用 parrtern ID
-     * @param board 游戏棋盘
-     * @return 可连接的两个 Position，或 null 若无
-     */
     private Position[] findTheme3Pair(GameBoard board) {
+        Set<Integer> seen = new HashSet<>();
         for (Map.Entry<Integer, Set<Position>> entry : board.patternEntries()) {
-            int pattern = entry.getKey();
-            if (pattern <= 0) {
+            int pairId = Theme3PoemData.pairId(entry.getKey());
+            if (!seen.add(pairId)) {
                 continue;
             }
-
-            int pairId = Theme3PoemData.pairId(pattern);
-            if (pairId <= 0) {
-                continue;
-            }
-
-            int firstPattern = Theme3PoemData.firstPatternId(pairId);
-            int secondPattern = Theme3PoemData.secondPatternId(pairId);
-
-            Position[] pair = findConnectableAcrossTwoPatterns(board, firstPattern, secondPattern);
+            Position[] pair = findConnectableAcrossTwoPatterns(
+                    board,
+                    Theme3PoemData.firstPatternId(pairId),
+                    Theme3PoemData.secondPatternId(pairId));
             if (pair != null) {
                 return pair;
             }
@@ -139,28 +122,17 @@ public class DeadEndDetector {
         return null;
     }
 
-    /**
-     * 查找 Theme4中的可连接配对
-     * 跨图案配对，调用 parrtern ID
-     * @param board 游戏棋盘
-     * @return 可连接的两个 Position，或 null 若无
-     */
     private Position[] findTheme4Pair(GameBoard board) {
+        Set<Integer> seen = new HashSet<>();
         for (Map.Entry<Integer, Set<Position>> entry : board.patternEntries()) {
-            int pattern = entry.getKey();
-            if (pattern <= 0) {
+            int pairId = Theme4YauData.pairId(entry.getKey());
+            if (!seen.add(pairId)) {
                 continue;
             }
-
-            int pairId = Theme4YauData.pairId(pattern);
-            if (pairId <= 0) {
-                continue;
-            }
-
-            int firstPattern = Theme4YauData.firstPatternId(pairId);
-            int secondPattern = Theme4YauData.secondPatternId(pairId);
-
-            Position[] pair = findConnectableAcrossTwoPatterns(board, firstPattern, secondPattern);
+            Position[] pair = findConnectableAcrossTwoPatterns(
+                    board,
+                    Theme4YauData.firstPatternId(pairId),
+                    Theme4YauData.secondPatternId(pairId));
             if (pair != null) {
                 return pair;
             }
@@ -177,10 +149,6 @@ public class DeadEndDetector {
      * @return 可连接的两个 Position，或 null 若无
      */
     private Position[] findConnectableAcrossTwoPatterns(GameBoard board, int firstPattern, int secondPattern) {
-        if (firstPattern <= 0 || secondPattern <= 0) {
-            return null;
-        }
-
         Set<Position> firstSet = board.getPatternPositions(firstPattern);
         Set<Position> secondSet = board.getPatternPositions(secondPattern);
         if (firstSet.isEmpty() || secondSet.isEmpty()) {

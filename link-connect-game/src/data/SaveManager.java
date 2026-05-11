@@ -30,7 +30,7 @@ public class SaveManager {
         private final String displayName;
 
         /**
-         * 构造存档槽。
+         * 构造存档文件夹。
          * @param fileName 文件名
          * @param displayName 显示名称
          */
@@ -49,7 +49,7 @@ public class SaveManager {
     }
 
     /**
-     * 将快照写入一个新的存档槽。
+     * 将快照写入一个新的存档文件夹。
      */
     public SaveSlot save(GameSnapshot snapshot) throws IOException {
         Path saveFile = newSavePath(snapshot.username());
@@ -120,8 +120,8 @@ public class SaveManager {
 
     /**
      * 生成新存档文件的完整路径。
-     * @param username 用户名
-     * @return 存档文件路径
+     * @param username
+     * @return
      */
     private Path newSavePath(String username) {
         String ts = NAME_TS_FORMAT.format(Instant.now().atZone(ZoneId.systemDefault()));
@@ -129,10 +129,10 @@ public class SaveManager {
     }
 
     /**
-     * 解析存档槽文件名并返回完整路径。
-     * @param username 用户名
-     * @param slotFileName 存档槽文件名
-     * @return 存档文件路径
+     * 解析存档文件夹文件名并返回完整路径。
+     * @param username
+     * @param slotFileName
+     * @return
      * @throws IOException 文件名格式错误
      */
     private Path savePath(String username, String slotFileName) throws IOException {

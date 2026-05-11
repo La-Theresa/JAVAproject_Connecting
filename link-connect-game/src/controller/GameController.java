@@ -19,7 +19,7 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * 游戏控制器，负责业务流程、状态推进和视图调度。
+ * 游戏控制器
  */
 public class GameController {
     private static final long SAVE_CLICK_COOLDOWN_MS = 700;
@@ -44,34 +44,25 @@ public class GameController {
     private boolean finishing;
 
     /**
-     * 绑定视图接口，实现MVC模式。
-     * @param view 游戏视图实现
+     * 绑定视图接口
+     * @param view
      */
     public void attachView(GameView view) {
         this.view = view;
     }
 
-    /**
-     * 打开登录界面。
-     */
     public void openLogin() {
         if (view != null) {
             view.showLoginCard();
         }
     }
 
-    /**
-     * 打开注册界面。
-     */
     public void openRegister() {
         if (view != null) {
             view.showRegisterCard();
         }
     }
 
-    /**
-     * 打开排行榜界面。
-     */
     public void openLeaderboard() {
         if (view != null) {
             view.updateLeaderboard(recordManager.topN(10));
@@ -97,7 +88,7 @@ public class GameController {
 
     /**
      * 以游客模式开始游戏。
-     * @param difficulty 游戏难度
+     * @param difficulty
      */
     public void startGuestGame(Constants.Difficulty difficulty) {
         currentUser = null;
@@ -110,7 +101,7 @@ public class GameController {
 
     /**
      * 以登录用户身份开始游戏。
-     * @param difficulty 游戏难度
+     * @param difficulty
      */
     public void startGame(Constants.Difficulty difficulty) {
         Constants.Theme theme = view == null ? Constants.Theme.THEME1 : view.chooseTheme();
@@ -120,22 +111,10 @@ public class GameController {
         startNewSession(difficulty, theme);
     }
 
-    /**
-     * 注册新用户。
-     * @param username 用户名
-     * @param password 密码
-     * @return 注册成功返回true
-     */
     public boolean register(String username, String password) {
         return userManager.register(username, password);
     }
 
-    /**
-     * 用户登录。
-     * @param username 用户名
-     * @param password 密码
-     * @return 登录成功返回true
-     */
     public boolean login(String username, String password) {
         User user = userManager.login(username, password);
         if (user == null) {
@@ -149,7 +128,7 @@ public class GameController {
     }
 
     /**
-     * 请求提示，显示一对可消除方块。
+     * hint 显示一对可消除方块。
      */
     public void requestHint() {
         if (session == null) {
@@ -173,9 +152,8 @@ public class GameController {
             return;
         }
         boardGenerator.reshuffle(session.board());
-        // The board layout changed — invalidate the cached dead-end result so
-        // the next hasLost() call re-evaluates valid moves on the new layout.
-        session.invalidateMoveCache();
+        // 棋盘图案布局不变
+        session.refreshNoValidMovesState();
         clearSelections();
         if (view != null) {
             view.setHintPair(null);
@@ -292,7 +270,7 @@ public class GameController {
 
     /**
      * 检测存档/读档操作是否过于频繁。
-     * @param saveAction 是否为存档操作
+     * @param saveAction
      * @return 过于频繁返回true
      */
     private boolean isTooFrequent(boolean saveAction) {
@@ -369,34 +347,18 @@ public class GameController {
         }
     }
 
-    /**
-     * 获取当前游戏会话。
-     * @return 游戏会话实例
-     */
     public GameSession getSession() {
         return session;
     }
 
-    /**
-     * 获取第一次选中的方块位置。
-     * @return 第一次选中位置，无则返回null
-     */
     public Position getSelectedFirst() {
         return selectedFirst;
     }
 
-    /**
-     * 获取第二次选中的方块位置。
-     * @return 第二次选中位置，无则返回null
-     */
     public Position getSelectedSecond() {
         return selectedSecond;
     }
 
-    /**
-     * 获取当前提示对位置。
-     * @return 提示对数组，无则返回null
-     */
     public Position[] getHintPair() {
         if (hintPair == null) {
             return null;
@@ -404,18 +366,10 @@ public class GameController {
         return new Position[]{hintPair[0], hintPair[1]};
     }
 
-    /**
-     * 判断当前是否已登录。
-     * @return 已登录返回true
-     */
     public boolean isLoggedIn() {
         return currentUser != null;
     }
 
-    /**
-     * 获取当前登录用户名。
-     * @return 用户名，未登录返回null
-     */
     public String getCurrentUserName() {
         return currentUser == null ? null : currentUser.username();
     }
@@ -425,16 +379,12 @@ public class GameController {
      * @return 首字母大写，未登录返回"A"
      */
     public String getCurrentUserInitial() {
-        if (currentUser == null || currentUser.username() == null || currentUser.username().isBlank()) {
+        if (currentUser == null) {
             return "A";
         }
         return currentUser.username().substring(0, 1).toUpperCase();
     }
 
-    /**
-     * 启动新的游戏会话。
-     * @param difficulty 游戏难度
-     */
     private void startNewSession(Constants.Difficulty difficulty, Constants.Theme theme) {
         stopTimer();
         GameBoard board = boardGenerator.generate(difficulty, theme);
@@ -454,9 +404,6 @@ public class GameController {
         startTimer();
     }
 
-    /**
-     * 启动游戏计时器，每秒更新游戏状态。
-     */
     private void startTimer() {
         if (timer == null) {
             timer = new Timer(Constants.TIMER_TICK_MS, e -> {
@@ -478,20 +425,16 @@ public class GameController {
         timer.start();
     }
 
-    /**
-     * 结束游戏，处理胜负逻辑和状态清理。
-     * @param title 游戏结果标题（Victory/Defeat）
-     */
     private void finishGame(String title) {
         if (session == null || finishing) {
             return;
         }
         finishing = true;
         stopTimer();
-        if (currentUser != null && session != null) {
+        if (currentUser != null) {
             userManager.recordGame(currentUser, session.score());
         }
-        if (view != null && session != null) {
+        if (view != null) {
             view.showInfoMessage(title, title + " | Score: " + session.score());
         }
         session = null;
@@ -505,9 +448,6 @@ public class GameController {
         finishing = false;
     }
 
-    /**
-     * 刷新HUD面板显示的游戏状态信息。
-     */
     private void refreshHud() {
         if (view == null || session == null) {
             return;
@@ -523,9 +463,6 @@ public class GameController {
         );
     }
 
-    /**
-     * 刷新选中状态显示。
-     */
     private void refreshSelections() {
         if (view != null) {
             view.setHintPair(hintPair);
@@ -533,18 +470,12 @@ public class GameController {
         }
     }
 
-    /**
-     * 清除所有选中状态。
-     */
     private void clearSelections() {
         selectedFirst = null;
         selectedSecond = null;
         hintPair = null;
     }
 
-    /**
-     * 延迟清除连接路径显示效果。
-     */
     private void schedulePathClear() {
         Timer clearTimer = new Timer(220, e -> {
             if (session != null) {
@@ -558,9 +489,6 @@ public class GameController {
         clearTimer.start();
     }
 
-    /**
-     * 停止并销毁游戏计时器。
-     */
     private void stopTimer() {
         if (timer != null) {
             timer.stop();

@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 用户注册登录管理，数据持久化到本地文本文件。
+ * 用户注册登录管理，数据放在本地文本文件。
  */
 public class UserManager {
     private final Map<String, User> users = new HashMap<>();
@@ -41,7 +41,7 @@ public class UserManager {
     }
 
     /**
-     * 用户登录，成功返回用户对象，失败返回null。
+     * 成功返回用户对象，失败返回null。
      */
     public User login(String username, String rawPassword) {
         User user = users.get(username);
@@ -55,7 +55,7 @@ public class UserManager {
     }
 
     /**
-     * 更新战绩并落盘。
+     * 更新战绩并记录
      */
     public void recordGame(User user, int score) {
         if (user == null) {
@@ -66,14 +66,14 @@ public class UserManager {
     }
 
     /**
-     * 返回当前所有用户副本。
+     * 返回当前所有用户副本
      */
     public List<User> allUsers() {
         return new ArrayList<>(users.values());
     }
 
     /**
-     * 从持久化文件加载用户数据。
+     * 从持久化文件加载用户数据
      */
     private void load() {
         try {
@@ -89,8 +89,8 @@ public class UserManager {
                     continue;
                 }
                 User user = new User(parts[0], parts[1]);
-                int gamesPlayed = parseIntOrZero(parts[2]);
-                int highScore = parseIntOrZero(parts[3]);
+                int gamesPlayed = Integer.parseInt(parts[2]);
+                int highScore = Integer.parseInt(parts[3]);
                 user.restoreStats(gamesPlayed, highScore);
                 users.put(parts[0], user);
             }
@@ -129,19 +129,6 @@ public class UserManager {
             return sb.toString();
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
-        }
-    }
-
-    /**
-     * 安全解析整数，失败返回0。
-     * @param value 字符串值
-     * @return 解析结果或0
-     */
-    private int parseIntOrZero(String value) {
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException e) {
-            return 0;
         }
     }
 }

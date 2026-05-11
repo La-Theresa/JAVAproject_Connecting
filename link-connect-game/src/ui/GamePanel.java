@@ -270,14 +270,12 @@ public class GamePanel extends JPanel {
                                          int maxLines,
                                          boolean byChar) {
         List<String> lines = new ArrayList<>();
-        if (text == null || text.isBlank()) {
-            return lines;
-        }
 
         if (!byChar && text.contains(" ")) {
             String[] words = text.split("\\s+");
             StringBuilder current = new StringBuilder();
             for (String word : words) {
+                // 句首不加空格，其他单词前加空格，保持原有单词间距
                 String candidate = current.length() == 0 ? word : current + " " + word;
                 if (g2.getFontMetrics().stringWidth(candidate) <= maxWidth) {
                     current.setLength(0);

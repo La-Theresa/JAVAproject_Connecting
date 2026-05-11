@@ -21,37 +21,22 @@ public class User implements Serializable {
         this.passwordHash = passwordHash;
     }
 
-    /**
-     * 返回用户名。
-     */
     public String username() {
         return username;
     }
 
-    /**
-     * 返回密码哈希。
-     */
     public String passwordHash() {
         return passwordHash;
     }
 
-    /**
-     * 返回已玩局数。
-     */
     public int gamesPlayed() {
         return gamesPlayed;
     }
 
-    /**
-     * 返回历史最高分。
-     */
     public int highScore() {
         return highScore;
     }
 
-    /**
-     * 记录一次对局并刷新最高分。
-     */
     public void recordGame(int score) {
         gamesPlayed++;
         if (score > highScore) {
@@ -59,11 +44,8 @@ public class User implements Serializable {
         }
     }
 
-    /**
-     * 从持久化数据恢复战绩字段。
-     */
     public void restoreStats(int gamesPlayed, int highScore) {
-        this.gamesPlayed = Math.max(0, gamesPlayed);
-        this.highScore = Math.max(0, highScore);
+        this.gamesPlayed = gamesPlayed;
+        this.highScore = highScore;
     }
 }

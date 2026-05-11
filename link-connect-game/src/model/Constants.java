@@ -67,35 +67,20 @@ public final class Constants {
             this.patternCount = patternCount;
         }
 
-        /**
-         * 返回棋盘行数。
-         */
         public int rows() {
             return rows;
         }
 
-        /**
-         * 返回棋盘列数。
-         */
         public int cols() {
             return cols;
         }
 
-        /**
-         * 返回该难度时间限制（秒）。
-         */
         public int timeLimitSeconds() {
             return timeLimitSeconds;
         }
 
-        /**
-         * 返回该难度图案种类数量。
-         */
         public int patternCount() {
             return patternCount;
         }
-    }
-
-    private Constants() {
     }
 }

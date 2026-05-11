@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+// import java.util.Arrays;
 
 /**
  * BoardGenerator 创造随机可消棋盘
@@ -30,21 +31,17 @@ public class BoardGenerator {
      */
     private static final int MAX_RETRIES = 250;
 
-    private final PathFinder pathFinder;
-
     private final DeadEndDetector deadEndDetector;
 
-    /**
-     * 构建 BoardGenerator 实例，需提供 PathFinder 以供生成时验证棋盘可消性。
-     * 其中 DeadEndDetector 也会使用同一个 PathFinder 来保持一致的路径判断逻辑。
-     */
     public BoardGenerator(PathFinder pathFinder) {
-        this.pathFinder = pathFinder;
         this.deadEndDetector = new DeadEndDetector(pathFinder);
     }
 
     /**
      * 按照难度创建一个棋盘
+     * 
+     * <p>PS：经过测试，基于10000次的生成结果，平均每次成功生成只需要一次，最多3次，每次生成平均耗时0.320ms，可以接受。
+     * 因此不考虑优化生成算法了。
      *
      * <p>最多尝试 {@link #MAX_RETRIES} 次，返回第一个成功棋盘，否则返回一个未经验证的随机棋盘。
      *
@@ -54,19 +51,18 @@ public class BoardGenerator {
     public GameBoard generate(Constants.Difficulty difficulty, Constants.Theme theme) {
         for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
             GameBoard board = randomBoard(difficulty, theme);
-            // Simulate clearing on a deep copy so the original remains intact.
             if (isCleanable(board.deepCopy())) {
                 return board;
             }
         }
-        // Fallback: 返回一个随机棋盘
         return randomBoard(difficulty, theme);
     }
 
     /**
      * 打乱棋盘，重新分布剩余的图案但不改变数量和位置。
      *
-     * <p>不保证可消, 但消除死局检测缓存(see {@link model.GameSession#invalidateMoveCache()}).
+     * <p>不保证可消, 但会在调用方重新计算死局状态
+     * (see {@link model.GameSession#refreshNoValidMovesState()}).
      *
      * @param board 预打乱的棋盘
      */
@@ -120,16 +116,9 @@ public class BoardGenerator {
         int playableRows = rows - 2;
         int playableCols = cols - 2;
         int playableTotal = playableRows * playableCols;
-        if (playableTotal % 2 != 0) {
-            throw new IllegalStateException(
-                "Playable board size " + playableRows + "x" + playableCols + " (" + playableTotal
-                + " cells) is odd — each pattern requires a pair, so an even "
-                + "playable cell count is required. Adjust the difficulty configuration."
-            );
-        }
 
-        // 确保主题可用 (由于数据特殊)
-        Constants.Theme safeTheme = theme == null ? Constants.Theme.THEME1 : theme;
+        // 确保主题数据可用
+        Constants.Theme safeTheme = theme;
         if (safeTheme == Constants.Theme.THEME2 && !Theme2VocabularyData.isAvailable()) {
             safeTheme = Constants.Theme.THEME1;
         }
@@ -142,49 +131,33 @@ public class BoardGenerator {
 
         GameBoard board = new GameBoard(rows, cols, safeTheme);
 
-        // 创建ID并打乱，这里全部为了避免文字型主题的数据错误加了回退
         List<Integer> ids = new ArrayList<>(playableTotal);
         if (safeTheme == Constants.Theme.THEME2) {
             int pairSlots = playableTotal / 2;
-            int uniqueTarget = Math.min(pairSlots, Math.max(8, difficulty.patternCount() * 2));
+            int uniqueTarget = Math.min(pairSlots, Math.max(8, difficulty.patternCount()));
             List<Integer> selectedIds = Theme2VocabularyData.randomEntryIds(uniqueTarget);
-            if (selectedIds.isEmpty()) {
-                safeTheme = Constants.Theme.THEME1;
-                board = new GameBoard(rows, cols, safeTheme);
-            } else {
-                for (int i = 0; i < pairSlots; i++) {
-                    int vocabId = selectedIds.get(i % selectedIds.size());
-                    ids.add(Theme2VocabularyData.englishPatternId(vocabId));
-                    ids.add(Theme2VocabularyData.chinesePatternId(vocabId));
-                }
+            for (int i = 0; i < pairSlots; i++) {
+                int vocabId = selectedIds.get(i % selectedIds.size());
+                ids.add(Theme2VocabularyData.englishPatternId(vocabId));
+                ids.add(Theme2VocabularyData.chinesePatternId(vocabId));
             }
         } else if (safeTheme == Constants.Theme.THEME3) {
             int pairSlots = playableTotal / 2;
-            int uniqueTarget = Math.min(pairSlots, Math.max(8, difficulty.patternCount() * 2));
+            int uniqueTarget = Math.min(pairSlots, Math.max(8, difficulty.patternCount()));
             List<Integer> selectedIds = Theme3PoemData.randomEntryIds(uniqueTarget);
-            if (selectedIds.isEmpty()) {
-                safeTheme = Constants.Theme.THEME1;
-                board = new GameBoard(rows, cols, safeTheme);
-            } else {
-                for (int i = 0; i < pairSlots; i++) {
-                    int poemId = selectedIds.get(i % selectedIds.size());
-                    ids.add(Theme3PoemData.firstPatternId(poemId));
-                    ids.add(Theme3PoemData.secondPatternId(poemId));
-                }
+            for (int i = 0; i < pairSlots; i++) {
+                int poemId = selectedIds.get(i % selectedIds.size());
+                ids.add(Theme3PoemData.firstPatternId(poemId));
+                ids.add(Theme3PoemData.secondPatternId(poemId));
             }
         } else if (safeTheme == Constants.Theme.THEME4) {
             int pairSlots = playableTotal / 2;
-            int uniqueTarget = Math.min(pairSlots, Math.max(8, difficulty.patternCount() * 2));
+            int uniqueTarget = Math.min(pairSlots, Math.max(8, difficulty.patternCount()));
             List<Integer> selectedIds = Theme4YauData.randomEntryIds(uniqueTarget);
-            if (selectedIds.isEmpty()) {
-                safeTheme = Constants.Theme.THEME1;
-                board = new GameBoard(rows, cols, safeTheme);
-            } else {
-                for (int i = 0; i < pairSlots; i++) {
-                    int yauId = selectedIds.get(i % selectedIds.size());
-                    ids.add(Theme4YauData.firstPatternId(yauId));
-                    ids.add(Theme4YauData.secondPatternId(yauId));
-                }
+            for (int i = 0; i < pairSlots; i++) {
+                int yauId = selectedIds.get(i % selectedIds.size());
+                ids.add(Theme4YauData.firstPatternId(yauId));
+                ids.add(Theme4YauData.secondPatternId(yauId));
             }
         }
 
@@ -212,7 +185,7 @@ public class BoardGenerator {
      * 创建简单棋盘
      */
     private GameBoard randomEasyBoard(int rows, int cols, Constants.Theme theme, int patternCount) {
-        Constants.Theme safeTheme = theme == null ? Constants.Theme.THEME1 : theme;
+        Constants.Theme safeTheme = theme;
         if (safeTheme == Constants.Theme.THEME2 && !Theme2VocabularyData.isAvailable()) {
             safeTheme = Constants.Theme.THEME1;
         }
@@ -226,9 +199,6 @@ public class BoardGenerator {
         GameBoard board = new GameBoard(rows, cols, safeTheme);
         List<Position> occupiedPositions = buildEasyOccupiedPositions();
         List<Integer> ids = buildPatternIdsForPositions(occupiedPositions.size(), safeTheme, patternCount);
-        if (ids.isEmpty()) {
-            return board;
-        }
 
         Collections.shuffle(ids, ThreadLocalRandom.current());
         for (int i = 0; i < occupiedPositions.size(); i++) {
@@ -256,7 +226,7 @@ public class BoardGenerator {
     }
 
     /**
-     * 构建图案ID列表, 仍然有回退，被{@link #randomEasyBoard}调用
+     * 构建图案ID列表
      */
     private List<Integer> buildPatternIdsForPositions(int tileCount, Constants.Theme safeTheme, int patternCount) {
         List<Integer> ids = new ArrayList<>(tileCount);
@@ -264,14 +234,6 @@ public class BoardGenerator {
             int pairSlots = tileCount / 2;
             int uniqueTarget = Math.min(pairSlots, Math.max(8, patternCount * 2));
             List<Integer> selectedIds = Theme2VocabularyData.randomEntryIds(uniqueTarget);
-            if (selectedIds.isEmpty()) {
-                for (int i = 0; i < tileCount / 2; i++) {
-                int pattern = (i % patternCount) + 1;
-                ids.add(pattern);
-                ids.add(pattern);
-                }
-                return ids;
-            }
             for (int i = 0; i < pairSlots; i++) {
                 int vocabId = selectedIds.get(i % selectedIds.size());
                 ids.add(Theme2VocabularyData.englishPatternId(vocabId));
@@ -283,14 +245,6 @@ public class BoardGenerator {
             int pairSlots = tileCount / 2;
             int uniqueTarget = Math.min(pairSlots, Math.max(8, patternCount * 2));
             List<Integer> selectedIds = Theme3PoemData.randomEntryIds(uniqueTarget);
-            if (selectedIds.isEmpty()) {
-                for (int i = 0; i < tileCount / 2; i++) {
-                int pattern = (i % patternCount) + 1;
-                ids.add(pattern);
-                ids.add(pattern);
-                }
-                return ids;
-            }
             for (int i = 0; i < pairSlots; i++) {
                 int poemId = selectedIds.get(i % selectedIds.size());
                 ids.add(Theme3PoemData.firstPatternId(poemId));
@@ -302,14 +256,6 @@ public class BoardGenerator {
             int pairSlots = tileCount / 2;
             int uniqueTarget = Math.min(pairSlots, Math.max(8, patternCount * 2));
             List<Integer> selectedIds = Theme4YauData.randomEntryIds(uniqueTarget);
-            if (selectedIds.isEmpty()) {
-                for (int i = 0; i < tileCount / 2; i++) {
-                int pattern = (i % patternCount) + 1;
-                ids.add(pattern);
-                ids.add(pattern);
-                }
-                return ids;
-            }
             for (int i = 0; i < pairSlots; i++) {
                 int yauId = selectedIds.get(i % selectedIds.size());
                 ids.add(Theme4YauData.firstPatternId(yauId));
@@ -347,11 +293,6 @@ public class BoardGenerator {
         while (board.remainingTiles() > 0 && guard-- > 0) {
             Position[] pair = deadEndDetector.findAnyPair(board);
             if (pair == null) {
-                return false;
-            }
-
-            // 复查
-            if (pathFinder.findPath(board, pair[0], pair[1]) == null) {
                 return false;
             }
             board.clear(pair[0]);

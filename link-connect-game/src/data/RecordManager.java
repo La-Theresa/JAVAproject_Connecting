@@ -7,22 +7,15 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * 排行榜服务，按分数降序排序。
+ * 排行榜，按分数降序排序。
  */
 public class RecordManager {
     private final UserManager userManager;
 
-    /**
-     * 构造排行榜服务。
-     * @param userManager 用户管理器
-     */
     public RecordManager(UserManager userManager) {
         this.userManager = userManager;
     }
 
-    /**
-     * 返回Top N排行榜文本列表。
-     */
     public List<String> topN(int n) {
         List<User> users = userManager.allUsers();
         users.sort(Comparator.comparingInt(User::highScore).reversed().thenComparing(User::username));

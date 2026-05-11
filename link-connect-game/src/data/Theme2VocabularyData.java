@@ -18,9 +18,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * <li>从本地 .tex 格式的词库文件中读取词汇条目（英文单词 ↔ 中文释义）。</li>
+ * <em> 此处正则表达式与文件查询参考 DeepSeek </em>
+ * 
+ * 
+ * <li>从本地 .tex 格式的词库文件中读取词汇条目</li>
  * <p>将词汇条目映射为连连看棋盘上的图案 ID（奇数代表英文，偶数代表对应的中文）。</p>
- * <p>提供随机选取词条、查询词汇内容、ID 换算等工具方法。</p>
  */
 public final class Theme2VocabularyData {
     private static final Pattern ENTRY_PATTERN = Pattern.compile(
@@ -30,13 +32,14 @@ public final class Theme2VocabularyData {
     private static final List<VocabEntry> ENTRIES = loadEntries();
     private static final Map<Integer, VocabEntry> BY_ID = buildIdMap(ENTRIES);
 
-    private Theme2VocabularyData() {
-    }
 
     public static boolean isAvailable() {
         return !ENTRIES.isEmpty();
     }
 
+    /**
+     * 随机获取指定数量的词汇条目 ID
+     */
     public static List<Integer> randomEntryIds(int count) {
         if (count <= 0 || ENTRIES.isEmpty()) {
             return List.of();
@@ -52,6 +55,11 @@ public final class Theme2VocabularyData {
         return new ArrayList<>(ids.subList(0, count));
     }
 
+    /**
+     * 根据图案 ID 获取对应的英文词汇（奇数 ID）或中文词汇（偶数 ID）。如果 ID 无效或不存在，返回 null。
+     * @param patternId
+     * @return
+     */
     public static String englishForPattern(int patternId) {
         int pairId = pairId(patternId);
         VocabEntry entry = BY_ID.get(pairId);
@@ -96,6 +104,7 @@ public final class Theme2VocabularyData {
             return List.of();
         }
 
+        // 利用正则捕获组抓取词条
         Matcher matcher = ENTRY_PATTERN.matcher(content);
         List<VocabEntry> result = new ArrayList<>();
         Set<Integer> seenIds = new HashSet<>();
@@ -174,7 +183,10 @@ public final class Theme2VocabularyData {
             return -1;
         }
     }
-
+    
+    /**
+     * 正则清理英文字符串，避免过长
+     */
     private static String sanitizeEnglish(String raw) {
         if (raw == null) {
             return "";
@@ -182,6 +194,16 @@ public final class Theme2VocabularyData {
         return raw.replaceAll("\\\\", "").trim();
     }
 
+    /**
+     * 正则清理中文字符串，避免过长
+     * <ul>
+     * <li>去除首尾空白</li>
+     * <li>移除开头的英文字母、点和空格</li>
+     * <li>将全角分号替换为中文逗号</li>
+     * <li>只保留第一个逗号前的内容</li>
+     * <li>只保留第一个斜杠前的内容</li>
+     * </ul>
+     */
     private static String sanitizeChinese(String raw) {
         if (raw == null) {
             return "";

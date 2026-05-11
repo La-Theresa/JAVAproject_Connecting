@@ -18,9 +18,13 @@ import javax.imageio.ImageIO;
  * 从 theme1 目录读取 PNG 图标并做尺寸缓存。
  */
 public final class ThemePngIconLoader {
-    private static final boolean DEBUG_ASSET_PATHS = true;
+    // 调试模式下会打印缺失资源的路径
+    private static final boolean DEBUG_ASSET_PATHS = false;
+    // 原始图像缓存
     private static final Map<String, BufferedImage> ORIGINAL_CACHE = new ConcurrentHashMap<>();
+    // 尺寸调整后的图像缓存
     private static final Map<String, BufferedImage> CACHE = new ConcurrentHashMap<>();
+    // 缓存主界面的两张装饰图片，这里直接放在 ThemePngIconLoader 里了，虽然有点奇怪，但也不想专门为两张图弄个类了
     private static final Map<String, BufferedImage> FILE_IMAGE_CACHE = new ConcurrentHashMap<>();
 
     private ThemePngIconLoader() {
@@ -93,13 +97,13 @@ public final class ThemePngIconLoader {
         }
     }
 
+
+    // 注意文件路径，添加了调试信息
+    // 不要动你的 icon 文件夹了，放在 src 同级的 icon 文件夹里，路径写 "icon/xxx.png"
     private static BufferedImage loadOriginal(String key) {
         String[] names;
-        if ("icon3_2".equals(key)) {
-            names = new String[]{"icon3_2.png", "icon3_2资源 9.png"};
-        } else {
-            names = new String[]{key + ".png"};
-        }
+
+        names = new String[]{key + ".png"};
 
         for (String name : names) {
             Path path = resolveReadablePath("icon/theme1/" + name);
@@ -118,7 +122,7 @@ public final class ThemePngIconLoader {
                     return image;
                 }
             } catch (Exception ignored) {
-                // 尝试下一个候选路径。
+                // 跳过图片
             }
         }
         return null;
@@ -194,6 +198,7 @@ public final class ThemePngIconLoader {
         return null;
     }
 
+    // 缩小图片时使用多次缩小的方式以获得更好的质量，避免一次性缩小导致的模糊
     private static BufferedImage downscaleHighQuality(BufferedImage source, int targetW, int targetH) {
         double ratio = Math.min((double) targetW / Math.max(1, source.getWidth()), (double) targetH / Math.max(1, source.getHeight()));
         int desiredW = Math.max(1, (int) Math.round(source.getWidth() * ratio));
@@ -229,6 +234,7 @@ public final class ThemePngIconLoader {
         return current;
     }
 
+    // 若图片加载失败，生成一个简单的占位图以避免程序崩溃
     private static BufferedImage fallbackImage(int size, String key) {
         BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2 = image.createGraphics();

@@ -32,11 +32,11 @@
 - 新建 `Main`：程序入口
 
 ## Step 7 - 编译与修复（已完成）
-- 尝试执行 `javac` 全量编译，当前环境未安装JDK命令行（`javac`不可用）
+- 尝试执行 `javac` 全量编译
 - 使用编辑器问题检测工具检查 `src` 目录，未发现语法错误
 - 修复用户数据加载统计偏差：新增 `User.restoreStats()` 并修正 `UserManager.load()`
 
 ## Step 8 - 交付与运行说明
 - 项目源码位于 `link-connect-game/src`
 - 入口类：`app.Main`
-- 若本机安装JDK后可执行：`javac -encoding UTF-8 -d out (all java files)`，然后 `java -cp out app.Main`
+- 可执行：`javac -encoding UTF-8 -d out (all java files)`，然后 `java -cp out app.Main`

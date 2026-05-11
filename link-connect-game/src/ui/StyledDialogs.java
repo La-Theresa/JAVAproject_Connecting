@@ -22,7 +22,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 项目内统一风格弹窗组件，避免系统对话框破坏视觉一致性。
+ * 项目内统一弹窗组件，避免使用系统对话框
+ * 
+ * <p>包含主题选择与存档读取选择弹窗
  */
 public final class StyledDialogs {
     private StyledDialogs() {
@@ -32,6 +34,7 @@ public final class StyledDialogs {
         JDialog dialog = createBaseDialog(parent, title, 520, 260);
         JPanel content = createBodyContainer();
 
+        // 转换为HTML以支持多行显示和特殊字符
         JLabel msg = new JLabel("<html><div style='text-align:center;'>" + escape(message) + "</div></html>", SwingConstants.CENTER);
         AuthUiKit.applyLocalizedLabelFont(msg, false, Font.PLAIN, 15);
         msg.setForeground(error ? new java.awt.Color(170, 44, 44) : new java.awt.Color(30, 30, 30));
@@ -57,6 +60,12 @@ public final class StyledDialogs {
         dialog.setVisible(true);
     }
 
+
+    /**
+     * 暂时没用，直接在开始界面选择
+     * @param parent
+     * @return
+     */
     public static Constants.Difficulty chooseDifficulty(Component parent) {
         JDialog dialog = createBaseDialog(parent, "Difficulty", 560, 300);
         JPanel content = createBodyContainer();
@@ -108,6 +117,11 @@ public final class StyledDialogs {
         return result.get();
     }
 
+    /**
+     * 选择难度后的主题选择
+     * @param parent
+     * @return
+     */
     public static Constants.Theme chooseTheme(Component parent) {
         JDialog dialog = createBaseDialog(parent, "Theme", 560, 420);
         JPanel content = createBodyContainer();
@@ -117,6 +131,7 @@ public final class StyledDialogs {
         title.setForeground(new java.awt.Color(20, 20, 20));
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
+        // 四个主题选项
         JRadioButton theme1 = createRadio("Theme 1 (Icons)", true);
         JRadioButton theme2 = createRadio("Theme 2 (English-Chinese)", false);
         JRadioButton theme3 = createRadio("Theme 3 (Poems)", false);
@@ -144,6 +159,7 @@ public final class StyledDialogs {
 
         AtomicReference<Constants.Theme> result = new AtomicReference<>(null);
 
+        // 这里 Start 按钮使用了 "Primary" 样式，Cancel 使用了 "Text" 样式，因此 Start 会较大，不是 bug
         javax.swing.JButton confirm = AuthUiKit.createPrimaryButton("Start");
         confirm.addActionListener(e -> {
             if (theme4.isSelected()) {
@@ -180,6 +196,12 @@ public final class StyledDialogs {
         return result.get();
     }
 
+    /**
+     * 选择存档槽的对话框，显示存档信息，允许用户选择一个存档进行加载，
+     * @param parent
+     * @param slots
+     * @return
+     */
     public static SaveManager.SaveSlot chooseSaveSlot(Component parent, List<SaveManager.SaveSlot> slots) {
         if (slots == null || slots.isEmpty()) {
             return null;
@@ -263,6 +285,7 @@ public final class StyledDialogs {
         return radio;
     }
 
+    // 原始文本转为html
     private static String escape(String text) {
         return text
                 .replace("&", "&amp;")

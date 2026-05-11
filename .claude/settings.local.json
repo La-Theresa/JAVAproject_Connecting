@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(javac -encoding UTF-8 -d out -sourcepath src src/app/Main.java)",
+      "Bash(cat)",
+      "Bash(javac -encoding UTF-8 -cp out -d out out/BenchBoardGen.java)",
+      "Bash(java -cp out BenchBoardGen)",
+      "Bash(javac -encoding UTF-8 -cp out -d out out/ValidatePaths.java)",
+      "Bash(java -cp out ValidatePaths)",
+      "Bash(javac -encoding UTF-8 -cp out -d out out/BenchAllThemes.java)",
+      "Bash(java -cp out BenchAllThemes)",
+      "Bash(javac -encoding UTF-8 -cp out -d out out/ProfileThemes.java)",
+      "Bash(java -cp out ProfileThemes)",
+      "Bash(rm 'd:\\\\SUSTech\\\\JAVA_A\\\\JAVAproject_Connecting\\\\link-connect-game\\\\out\\\\ProfileThemes.class' 'd:\\\\SUSTech\\\\JAVA_A\\\\JAVAproject_Connecting\\\\link-connect-game\\\\out\\\\BenchAllThemes.class' 2>/dev/null; echo done)",
+      "Bash(javac -encoding UTF-8 -cp out -d out out/BenchWarm.java)",
+      "Bash(java -cp out BenchWarm)"
+    ],
+    "additionalDirectories": [
+      "d:\\SUSTech\\JAVA_A\\JAVAproject_Connecting\\link-connect-game\\out"
+    ]
+  }
+}

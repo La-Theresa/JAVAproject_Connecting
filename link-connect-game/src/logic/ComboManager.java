@@ -22,14 +22,6 @@ public class ComboManager {
 
     /**
      * 记录成功消除和增加连击次数，并计算分数
-     *
-     * <p>对于额外连击的额外分数
-     * <pre>
-     *   rank  = comboCount - COMBO_THRESHOLD + 1   (1-based, ≥ 1)
-     *   score = BASE_SCORE + rank * 5
-     * </pre>
-     *
-     * @return 该次得分 {@link Constants#BASE_SCORE} 包括基本与额外
      */
     public int onEliminate() {
         comboCount++;
@@ -46,12 +38,6 @@ public class ComboManager {
         comboCount = 0;
     }
 
-    /**
-     * 记录连击次数，给存档
-     * {@link model.GameSnapshot} 使用，并不修改分数和加分
-     *
-     * @param count 需记录的连击次数
-     */
     public void setComboCount(int count) {
         this.comboCount = Math.max(0, count);
     }

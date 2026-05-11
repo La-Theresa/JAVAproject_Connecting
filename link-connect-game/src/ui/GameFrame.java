@@ -167,6 +167,11 @@ public class GameFrame extends JFrame implements GameView {
         timeLabel.setText("Time: " + timeLeft);
         comboLabel.setText("Combo: " + combo);
         operationLabel.setText(operation);
+        AuthUiKit.applyLocalizedLabelFont(statusLabel, false, Font.PLAIN, 14);
+        AuthUiKit.applyLocalizedLabelFont(scoreLabel, false, Font.PLAIN, 14);
+        AuthUiKit.applyLocalizedLabelFont(timeLabel, false, Font.PLAIN, 14);
+        AuthUiKit.applyLocalizedLabelFont(comboLabel, false, Font.PLAIN, 14);
+        AuthUiKit.applyLocalizedLabelFont(operationLabel, false, Font.PLAIN, 14);
     }
 
     /**
@@ -293,9 +298,9 @@ public class GameFrame extends JFrame implements GameView {
     }
 
     /**
-     * 创建带防抖功能的按钮，防止快速连续点击。
+     * 创建防止快速连续点击的按钮
      * @param text 按钮文本
-     * @param debounceMs 防抖时间（毫秒）
+     * @param debounceMs 时间（毫秒）
      * @param action 点击后执行的动作
      * @return 配置好的按钮
      */
